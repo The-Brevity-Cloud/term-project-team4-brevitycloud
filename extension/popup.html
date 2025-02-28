@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>AI Web Summarizer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>AI Web Summarizer</h1>
+    
+    <div class="buttons">
+      <button id="summarize-btn">Summarize This Page</button>
+    </div>
+    
+    <div id="loading" class="hidden">
+      <div class="spinner"></div>
+      <p>Analyzing content...</p>
+    </div>
+    
+    <div id="result-container" class="hidden">
+      <h2>Summary</h2>
+      <div id="summary-text"></div>
+    </div>
+    
+    <div id="error-container" class="hidden">
+      <p id="error-message"></p>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
