@@ -6,12 +6,27 @@ import re
 def clean_text(text):
     # Remove excessive whitespace, normalize line breaks
     text = re.sub(r'\n\s*\n', '\n\n', text)
+    text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
 def lambda_handler(event, context):
+    print("Event received:", json.dumps(event))  # Debug logging
+    
+    # Handle OPTIONS request for CORS
+    if event.get('requestContext', {}).get('http', {}).get('method') == 'OPTIONS':
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'OPTIONS,POST'
+            },
+            'body': ''
+        }
+    
     try:
         # Parse request body
-        body = json.loads(event['body'])
+        body = json.loads(event.get('body', '{}'))
         text_content = body.get('content', '')
         
         if not text_content:
@@ -27,6 +42,7 @@ def lambda_handler(event, context):
         
         # Clean the text
         cleaned_text = clean_text(text_content)
+        print("Cleaned text length:", len(cleaned_text))  # Debug logging
         
         # For free-tier AWS, we'll use a basic approach:
         # 1. Either use Amazon Bedrock if available (recommended)
@@ -40,37 +56,38 @@ def lambda_handler(event, context):
             )
             
             # Create prompt for summarization
-            prompt = f"""Human: I need a concise summary of the following web content. Focus on key points and main ideas only:
+            prompt = f"""Human: Please provide a concise summary of the following text in 3-5 sentences, focusing on the main points:
 
-            {cleaned_text}
+{cleaned_text}
 
-            Please provide a clear, well-structured summary that captures the essential information in 3-5 sentences.
+Please provide a clear, well-structured summary that captures the essential information in 3-5 sentences.
 
-            Assistant:"""
+Assistant:"""
             
-            # Call Bedrock model (using Claude or another available model)
+            # Call Bedrock model
             response = bedrock_runtime.invoke_model(
-                modelId='anthropic.claude-v2',  # Or another available model
+                modelId='anthropic.claude-3-5-sonnet-20241022-v2:0',
                 body=json.dumps({
                     "prompt": prompt,
-                    "max_tokens_to_sample": 500,
-                    "temperature": 0.5,
-                    "top_p": 0.9,
+                    "max_tokens": 500,
+                    "temperature": 0.7,
+                    "top_p": 1,
+                    "stop_sequences": ["Human:"]
                 })
             )
             
             # Parse response
-            response_body = json.loads(response['body'].read().decode('utf-8'))
-            summary = response_body.get('completion', '')
+            response_body = json.loads(response.get('body').read())
+            summary = response_body.get('completion', '').strip()
+            print("Generated summary:", summary)  # Debug logging
             
         except Exception as e:
-            # Fallback to a simple extractive approach if Bedrock fails
-            # This is a very basic implementation for the POC
+            print("Bedrock API error:", str(e))  # Debug logging
+            # Fallback to extractive summarization
             sentences = re.split(r'(?<=[.!?])\s+', cleaned_text)
             if len(sentences) <= 5:
                 summary = cleaned_text
             else:
-                # Simple extractive summarization - take first 3-5 sentences
                 summary = ' '.join(sentences[:min(5, len(sentences) // 3)])
         
         return {
@@ -78,7 +95,8 @@ def lambda_handler(event, context):
             'headers': {
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST'
+                'Access-Control-Allow-Methods': 'OPTIONS,POST',
+                'Content-Type': 'application/json'
             },
             'body': json.dumps({
                 'summary': summary
@@ -86,12 +104,16 @@ def lambda_handler(event, context):
         }
         
     except Exception as e:
+        print("General error:", str(e))  # Debug logging
         return {
             'statusCode': 500,
             'headers': {
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST'
+                'Access-Control-Allow-Methods': 'OPTIONS,POST',
+                'Content-Type': 'application/json'
             },
-            'body': json.dumps({'error': str(e)})
+            'body': json.dumps({
+                'error': str(e)
+            })
         }

@@ -6,8 +6,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorEl = document.getElementById('error-container');
     const errorMsgEl = document.getElementById('error-message');
     
-    // API endpoint from AWS (will be replaced with actual URL from Terraform output)
-    const API_ENDPOINT = 'https://REPLACE_WITH_API_GATEWAY_URL/prod/summarize';
+    // Replace with your API endpoint from AWS
+    const API_ENDPOINT = 'https://854eynz9xg.execute-api.us-east-1.amazonaws.com/prod/summarize';
     
     summarizeBtn.addEventListener('click', async () => {
       loadingEl.classList.remove('hidden');
@@ -25,22 +25,22 @@ document.addEventListener('DOMContentLoaded', function() {
           throw new Error("Couldn't extract content from the page.");
         }
         
-        // Call API to get summary
+        // Call the backend API
         const apiResponse = await fetch(API_ENDPOINT, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ content: response.content })
+          body: JSON.stringify({
+            content: response.content
+          })
         });
         
         if (!apiResponse.ok) {
-          throw new Error(`API error: ${apiResponse.status}`);
+          throw new Error('Failed to get summary from the server.');
         }
         
         const data = await apiResponse.json();
-        
-        // Display the summary
         summaryTextEl.textContent = data.summary;
         resultEl.classList.remove('hidden');
       } catch (error) {
@@ -51,4 +51,4 @@ document.addEventListener('DOMContentLoaded', function() {
         loadingEl.classList.add('hidden');
       }
     });
-  });
+});

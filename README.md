@@ -1,25 +1,84 @@
 # AI Web Summarizer Chrome Extension
 
-We've all had moments when browsing a website and need to quickly find specific information or get a summary of the content without reading through everything. Standard keyword search (Cmd+F) works in some cases, but not when there are multiple aliases for a term or when the page is too long. This is especially relevant for job applications, research papers, or documentation-heavy websites where users need key insights fast.
-To address this, we're building an AI-powered Chrome extension that acts as a smart assistant while browsing. The extension will provide three core functionalities:
-1. Summarization – Quickly generate concise summaries of webpages and videos.
-2. Smart Keyword Search – Find relevant information even when exact keywords aren't known, using AI-based alias detection.
-3. Basic Question Answering – Answer simple queries based on webpage or video content, without requiring users to scan through everything manually.
+## Architecture
+![Architecture Diagram](resources/architecture.png)
 
-## Initial POC - Text Summarization
-Updated as of 27th Feb - trial setup for deploying text summarizer
+## Demo POC Setup:
+The below explanation will help setup and run the demo code for the sake of showing how the chrome extension can be setup with a basic frontend and backend.
+## Tech Stack
+- Frontend: Chrome Extension (JavaScript)
+- Backend: AWS Lambda (Python 3.9)
+- API: Amazon API Gateway (HTTP API)
+- AI: AWS Bedrock (Claude v2)
+- IaC: Terraform
 
-### Overview
+## Directory Structure
+```
+.
+├── extension/               # Chrome Extension
+│   ├── manifest.json       # Extension configuration
+│   ├── popup.html         # Extension UI
+│   ├── popup.js          # UI logic
+│   └── content.js        # Page content extractor
+├── backend/               # AWS Lambda Function
+│   ├── requirements.txt   # Python dependencies
+│   └── summarize.py      # Lambda handler
+└── infrastructure/        # Terraform IaC
+    ├── main.tf           # Main infrastructure
+    ├── variables.tf      # Variable definitions
+    └── outputs.tf        # Output definitions
+```
 
-This POC demonstrates:
-1. Text extraction from web pages
-2. AI-powered summarization using AWS Bedrock
-3. Simple Chrome extension UI
-4. Infrastructure as Code with Terraform
-5. CI/CD with GitHub Actions
+## Setup Instructions
 
-### Project Structure
+### 1. AWS Setup
+1. Install AWS CLI
+2. Configure AWS credentials:
+   ```bash
+   aws configure
+   ```
+3. Enable AWS Bedrock in your account
+   - Go to AWS Console → Bedrock
+   - Enable Claude 3.5 Sonnet v2 model
 
-- `extension/`: Chrome Extension code - javascript
-- `backend/`: AWS Lambda function code - python
-- `infrastructure/`: Terraform IaC
+### 2. Backend Deployment
+```bash
+# Install dependencies and create deployment package
+cd backend
+pip install -r requirements.txt -t .
+zip -r ../infrastructure/lambda_function.zip .
+
+# Deploy infrastructure
+cd ../infrastructure
+terraform init
+terraform plan
+terraform apply
+
+# Save the API endpoint
+terraform output api_endpoint
+```
+
+### 3. Frontend Setup
+1. Update API endpoint in `extension/popup.js`:
+   ```javascript
+   const API_ENDPOINT = 'your-api-endpoint';
+   ```
+
+2. Load extension in Chrome:
+   - Open `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked"
+   - Select `extension` directory
+
+## Usage
+1. Navigate to any webpage
+2. Click extension icon
+3. Click "Summarize This Page"
+4. View AI-generated summary
+
+
+## AWS Resource Costs
+- Lambda: Free tier eligible
+- API Gateway: Free tier eligible
+- Bedrock: Pay per use
+
