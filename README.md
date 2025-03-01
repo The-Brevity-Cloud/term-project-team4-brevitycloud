@@ -48,6 +48,9 @@ cd backend
 pip install -r requirements.txt -t .
 zip -r ../infrastructure/lambda_function.zip .
 
+# Use this if running on windows powershell:
+# Compress-Archive -Path * -DestinationPath ../infrastructure/lambda_function.zip -Force
+
 # Deploy infrastructure
 cd ../infrastructure
 terraform init
