@@ -1,7 +1,7 @@
 # AI Web Summarizer Chrome Extension
 
 ## Architecture
-![Architecture Diagram](resources/architecture.png)
+![Architecture Diagram](https://github.com/SWEN-614-Spring-2025/term-project-team4-brevitycloud/blob/main/resources/Architecture.png)
 
 ## Demo POC Setup:
 The below explanation will help setup and run the demo code for the sake of showing how the chrome extension can be setup with a basic frontend and backend.
