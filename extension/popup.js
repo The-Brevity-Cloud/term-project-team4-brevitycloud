@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorMsgEl = document.getElementById('error-message');
     
     // Replace with your API endpoint from AWS
-    const API_ENDPOINT = 'https://1elvcz7gv4.execute-api.us-east-1.amazonaws.com/prod/summarize';
+    const API_ENDPOINT = 'https://oojx0dyhe9.execute-api.us-east-1.amazonaws.com/prod/summarize';
     
     summarizeBtn.addEventListener('click', async () => {
       loadingEl.classList.remove('hidden');
