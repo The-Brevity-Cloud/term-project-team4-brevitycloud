@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Assistant Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #f7f7f7;
+      display: flex;
+      flex-direction: row;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* MAIN CONTENT */
+    .main-panel {
+      background: white;
+      border-top-left-radius: 20px;
+      border-bottom-left-radius: 20px;
+      padding: 32px 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .main-panel h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .main-panel p {
+      font-size: 16px;
+      margin-bottom: 24px;
+    }
+
+    .btn-offer {
+      background: linear-gradient(to right, #fdf2e9, #e9e5ff);
+      color: #000;
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      width: fit-content;
+    }
+
+    .btn-offer:hover {
+      transform: scale(1.02);
+    }
+
+    /* SIDEPANEL */
+    .side-panel {
+      width: 56px;
+      background: white;
+      border-top-right-radius: 20px;
+      border-bottom-right-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0;
+      box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
+    }
+
+    .icon-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .side-icon {
+      width: 24px;
+      height: 24px;
+      opacity: 0.6;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .side-icon:hover,
+    .side-icon.active {
+      opacity: 1;
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+
+    /* FOOTER BAR (Optional) */
+    .footer {
+      margin-top: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 16px;
+    }
+
+    .footer span {
+      font-size: 13px;
+      color: #4caf50;
+      font-weight: 600;
+    }
+
+    .footer-icons {
+      display: flex;
+      gap: 16px;
+    }
+
+    .footer-icons img {
+      width: 20px;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Main Content Panel -->
+  <div id="loginForm" class="main-panel" style="display: none;">
+    <h1>Login</h1>
+    <input type="email" id="email" placeholder="Email" style="margin-bottom: 8px; padding: 8px; width: 100%; border-radius: 8px; border: 1px solid #ddd;">
+    <input type="password" id="password" placeholder="Password" style="margin-bottom: 8px; padding: 8px; width: 100%; border-radius: 8px; border: 1px solid #ddd;">
+    <button id="loginBtn" style="padding: 8px 12px; border-radius: 8px; border: none; background-color: #4caf50; color: white; font-weight: 600; cursor: pointer;">Login</button>
+  </div>
+
+  <div id="summaryContent" class="main-panel" style="display: flex;">
+    <h1>Hi,</h1>
+    <p>How can I assist you today?</p>
+    <button class="btn-offer">Summarize this page</button>
+    <!-- Footer Bar -->
+    <div class="footer">
+      <input type="text" placeholder="Type your query here..." style="flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #ddd;">
+      <button style="padding: 8px 12px; border-radius: 8px; border: none; background-color: #4caf50; color: white; font-weight: 600; cursor: pointer; margin-left: 8px;">Send</button>
+    </div>
+  </div>
+
+ </body>
+</html>

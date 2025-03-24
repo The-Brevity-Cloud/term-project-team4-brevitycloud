@@ -11,6 +11,8 @@
     
     <div class="buttons">
       <button id="summarize-btn">Summarize This Page</button>
+      <button id="open-sidepanel-btn">Open Side Panel</button> <!-- New button -->
+      <button id="add-overlay-btn">Add Image Overlay</button> <!-- New button -->
     </div>
     
     <div id="loading" class="hidden">
@@ -25,6 +27,13 @@
     
     <div id="error-container" class="hidden">
       <p id="error-message"></p>
+    </div>
+
+    <!-- Communication bar for chat -->
+    <div id="chat-container">
+      <div id="chat-messages"></div>
+      <input type="text" id="chat-input" placeholder="Type a message...">
+      <button id="send-chat-btn">Send</button>
     </div>
   </div>
   

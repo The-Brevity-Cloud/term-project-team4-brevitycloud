@@ -6,7 +6,8 @@
     "permissions": [
         "activeTab",
         "scripting",
-        "storage"
+        "storage",
+        "sidePanel"
     ],
     "host_permissions": [
         "https://*.execute-api.us-east-1.amazonaws.com/*"
@@ -25,5 +26,8 @@
     "background": {
         "service_worker": "background.js",
         "type": "module"
+    },
+    "side_panel": {
+        "default_path": "sidepanel.html"
     }
 }

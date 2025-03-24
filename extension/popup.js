@@ -1,10 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
     const summarizeBtn = document.getElementById('summarize-btn');
+    const openSidePanelBtn = document.getElementById('open-sidepanel-btn'); // New button
     const loadingEl = document.getElementById('loading');
     const resultEl = document.getElementById('result-container');
     const summaryTextEl = document.getElementById('summary-text');
     const errorEl = document.getElementById('error-container');
     const errorMsgEl = document.getElementById('error-message');
+    const chatInput = document.getElementById('chat-input'); // New chat input
+    const sendChatBtn = document.getElementById('send-chat-btn'); // New chat button
+    const chatMessages = document.getElementById('chat-messages'); // New chat messages container
     
     // Replace with your API endpoint from AWS
     const API_ENDPOINT = 'https://oojx0dyhe9.execute-api.us-east-1.amazonaws.com/prod/summarize';
@@ -49,6 +53,21 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error(error);
       } finally {
         loadingEl.classList.add('hidden');
+      }
+    });
+
+    openSidePanelBtn.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'openSidePanel' });
+    });
+
+    sendChatBtn.addEventListener('click', () => {
+      const message = chatInput.value.trim();
+      if (message) {
+        const messageEl = document.createElement('div');
+        messageEl.textContent = message;
+        chatMessages.appendChild(messageEl);
+        chatInput.value = '';
+        chatMessages.scrollTop = chatMessages.scrollHeight;
       }
     });
 });
