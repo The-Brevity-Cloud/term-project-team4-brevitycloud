@@ -1,16 +1,24 @@
 {
     "manifest_version": 3,
     "name": "AI Web Summarizer",
-    "version": "0.1",
-    "description": "AI-powered summarization for web content",
+    "version": "1.0",
+    "description": "Summarize web pages using AI",
     "permissions": [
         "activeTab",
         "scripting",
         "storage"
     ],
     "host_permissions": [
-        "https://*.execute-api.us-east-1.amazonaws.com/*"
+        "https://*.execute-api.us-east-1.amazonaws.com/",
+        "https://mzu4l0fkgh.execute-api.us-east-1.amazonaws.com/"
     ],
+    "externally_connectable": {
+        "matches": [
+            "https://*.execute-api.us-east-1.amazonaws.com/*",
+            "https://mzu4l0fkgh.execute-api.us-east-1.amazonaws.com/*",
+            "https://*.chromiumapp.org/*"
+        ]
+    },
     "action": {
         "default_popup": "popup.html",
         "default_icon": "assets/icons/icon.png"
@@ -25,5 +33,8 @@
     "background": {
         "service_worker": "background.js",
         "type": "module"
+    },
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.execute-api.us-east-1.amazonaws.com https://mzu4l0fkgh.execute-api.us-east-1.amazonaws.com"
     }
 }

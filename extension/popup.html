@@ -9,25 +9,71 @@
   <div class="container">
     <h1>AI Web Summarizer</h1>
     
-    <div class="buttons">
-      <button id="summarize-btn">Summarize This Page</button>
+    <!-- Debug Section -->
+    <div id="debugSection">
+      <button id="debugBtn" class="btn btn-small">Debug Info</button>
+      <button id="clearStorageBtn" class="btn btn-small">Clear Storage</button>
+      <button id="testAPIBtn" class="btn btn-small">Test API</button>
     </div>
     
-    <div id="loading" class="hidden">
-      <div class="spinner"></div>
-      <p>Analyzing content...</p>
+    <!-- Login Form -->
+    <div id="loginForm" class="auth-form">
+      <h2>Account Login</h2>
+      <div class="form-group">
+        <input type="email" id="email" placeholder="Email" class="form-input">
+      </div>
+      <div class="form-group">
+        <input type="password" id="password" placeholder="Password" class="form-input">
+        <small class="password-hint">Password must be at least 8 characters with uppercase, lowercase, number, and special character</small>
+      </div>
+      <div class="button-group">
+        <button id="loginBtn" class="btn btn-primary">Login</button>
+        <button id="registerBtn" class="btn btn-secondary">Register</button>
+      </div>
     </div>
     
-    <div id="result-container" class="hidden">
-      <h2>Summary</h2>
-      <div id="summary-text"></div>
+    <!-- Verification Form -->
+    <div id="verificationForm" class="auth-form" style="display: none;">
+      <h2>Verify Your Email</h2>
+      <div class="form-group">
+        <input type="text" id="verificationCode" placeholder="Enter verification code" class="form-input">
+        <input type="hidden" id="verificationEmail">
+      </div>
+      <div class="button-group">
+        <button id="verifyBtn" class="btn btn-primary">Verify</button>
+      </div>
     </div>
     
-    <div id="error-container" class="hidden">
-      <p id="error-message"></p>
+    <!-- Summary Content (shown after login) -->
+    <div id="summaryContent" style="display: none;">
+      <div class="user-bar">
+        <button id="logoutBtn" class="btn btn-small">Logout</button>
+      </div>
+      
+      <div class="buttons">
+        <button id="summarize-btn">Summarize This Page</button>
+      </div>
+      
+      <div id="loading" class="hidden">
+        <div class="spinner"></div>
+        <p>Analyzing content...</p>
+      </div>
+      
+      <div id="success-container" class="hidden">
+        <p id="success-message" class="success-message"></p>
+      </div>
+      
+      <div id="error-container" class="hidden">
+        <p id="error-message" class="error-message"></p>
+      </div>
+      
+      <div id="result-container" class="hidden">
+        <h2>Summary</h2>
+        <div id="summary-text" class="summary-content"></div>
+      </div>
     </div>
   </div>
-  
+
   <script src="popup.js"></script>
 </body>
 </html>

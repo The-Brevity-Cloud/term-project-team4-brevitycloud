@@ -1,4 +1,14 @@
 output "api_endpoint" {
-  value = "${aws_apigatewayv2_stage.prod.invoke_url}/summarize"
-  description = "API Gateway endpoint URL for the Lambda function"
+  value       = module.api_gateway.api_endpoint
+  description = "API Gateway endpoint URL"
+}
+
+output "cognito_user_pool_client_id" {
+  value       = module.cognito.cognito_client_id
+  description = "Cognito User Pool Client ID"
+}
+
+output "cognito_user_pool_id" {
+  value       = module.cognito.cognito_user_pool_id
+  description = "Cognito User Pool ID"
 }
