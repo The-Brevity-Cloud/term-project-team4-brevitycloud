@@ -13,11 +13,14 @@ function extractPageContent() {
     return textContent;
   }
   
-  // Listen for messages from the popup
+  // Listen for messages from the side panel
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "extractContent") {
-      const content = extractPageContent();
-      sendResponse({content: content});
+    if (request.action === "getPageContent") {
+        // Get the main content of the page
+        const content = document.body.innerText;
+        
+        // Send the content back to the side panel
+        sendResponse({ content });
     }
-    return true; // Keeps the message channel open for async response
+    return true; // Required for async response
   });

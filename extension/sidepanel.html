@@ -21,6 +21,116 @@
       overflow: hidden;
     }
 
+    .main-panel {
+      background: white;
+      border-radius: 20px;
+      padding: 32px 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .main-panel h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .main-panel p {
+      font-size: 14px;
+      margin-bottom: 24px;
+      color: #666;
+    }
+
+    .form-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .input-field {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    .btn {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .btn-secondary {
+      background-color: #f0f0f0;
+      color: #333;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .error-message {
+      color: #dc3545;
+      font-size: 14px;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .success-message {
+      color: #28a745;
+      font-size: 14px;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .footer {
+      margin-top: auto;
+      display: flex;
+      gap: 8px;
+      padding: 16px 0;
+    }
+
+    .summary-container {
+      background: #f8f9fa;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .toggle-form {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+
+    .toggle-form a {
+      color: #4caf50;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
     /* MAIN CONTENT */
     .main-panel {
       background: white;
@@ -131,25 +241,75 @@
   </style>
 </head>
 <body>
+  <!-- Auth Container -->
+  <div id="authContainer" class="main-panel">
+    <!-- Login Form -->
+    <div id="loginForm">
+      <h1>Welcome Back</h1>
+      <p>Login to continue using the AI Assistant</p>
+      <div class="form-container">
+        <input type="email" id="loginEmail" class="input-field" placeholder="Email">
+        <input type="password" id="loginPassword" class="input-field" placeholder="Password">
+        <button id="loginBtn" class="btn btn-primary">Login</button>
+      </div>
+      <div id="loginError" class="error-message"></div>
+      <div class="toggle-form">
+        Don't have an account? <a id="showRegister">Register</a>
+      </div>
+    </div>
 
-  <!-- Main Content Panel -->
-  <div id="loginForm" class="main-panel" style="display: none;">
-    <h1>Login</h1>
-    <input type="email" id="email" placeholder="Email" style="margin-bottom: 8px; padding: 8px; width: 100%; border-radius: 8px; border: 1px solid #ddd;">
-    <input type="password" id="password" placeholder="Password" style="margin-bottom: 8px; padding: 8px; width: 100%; border-radius: 8px; border: 1px solid #ddd;">
-    <button id="loginBtn" style="padding: 8px 12px; border-radius: 8px; border: none; background-color: #4caf50; color: white; font-weight: 600; cursor: pointer;">Login</button>
-  </div>
+    <!-- Register Form -->
+    <div id="registerForm" style="display: none;">
+      <h1>Create Account</h1>
+      <p>Register to start using the AI Assistant</p>
+      <div class="form-container">
+        <input type="email" id="registerEmail" class="input-field" placeholder="Email">
+        <input type="password" id="registerPassword" class="input-field" placeholder="Password">
+        <button id="registerBtn" class="btn btn-primary">Register</button>
+      </div>
+      <div id="registerError" class="error-message"></div>
+      <div class="toggle-form">
+        Already have an account? <a id="showLogin">Login</a>
+      </div>
+    </div>
 
-  <div id="summaryContent" class="main-panel" style="display: flex;">
-    <h1>Hi,</h1>
-    <p>How can I assist you today?</p>
-    <button class="btn-offer">Summarize this page</button>
-    <!-- Footer Bar -->
-    <div class="footer">
-      <input type="text" placeholder="Type your query here..." style="flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #ddd;">
-      <button style="padding: 8px 12px; border-radius: 8px; border: none; background-color: #4caf50; color: white; font-weight: 600; cursor: pointer; margin-left: 8px;">Send</button>
+    <!-- Verification Form -->
+    <div id="verifyForm" style="display: none;">
+      <h1>Verify Email</h1>
+      <p>Enter the verification code sent to your email</p>
+      <div class="form-container">
+        <input type="text" id="verifyCode" class="input-field" placeholder="Verification Code">
+        <button id="verifyBtn" class="btn btn-primary">Verify</button>
+        <button id="resendCodeBtn" class="btn btn-secondary">Resend Code</button>
+      </div>
+      <div id="verifyError" class="error-message"></div>
+    </div>
+
+    <div id="loading" class="loading">
+      Processing...
     </div>
   </div>
 
- </body>
+  <!-- Main Content (Summarize) Container -->
+  <div id="mainContainer" class="main-panel" style="display: none;">
+    <h1>AI Assistant</h1>
+    <p>Get instant summaries and ask questions about any webpage</p>
+    
+    <button id="summarizeBtn" class="btn btn-primary">Summarize this page</button>
+    
+    <div id="summaryContainer" class="summary-container" style="display: none;">
+      <h2>Summary</h2>
+      <div id="summaryContent"></div>
+    </div>
+
+    <div class="footer">
+      <input type="text" id="queryInput" class="input-field" placeholder="Ask a question about this page...">
+      <button id="sendQueryBtn" class="btn btn-primary">Send</button>
+    </div>
+
+    <button id="logoutBtn" class="btn btn-secondary" style="margin-top: 16px;">Logout</button>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
 </html>

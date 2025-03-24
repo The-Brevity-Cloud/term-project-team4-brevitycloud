@@ -1,12 +1,12 @@
 {
     "manifest_version": 3,
-    "name": "AI Web Summarizer",
-    "version": "0.1",
-    "description": "AI-powered summarization for web content",
+    "name": "BrevityCloud AI Assistant",
+    "version": "1.0",
+    "description": "AI-powered text summarization and analysis tool",
     "permissions": [
+        "storage",
         "activeTab",
         "scripting",
-        "storage",
         "sidePanel"
     ],
     "host_permissions": [
@@ -29,5 +29,8 @@
     },
     "side_panel": {
         "default_path": "sidepanel.html"
+    },
+    "icons": {
+        "16": "assets/icons/icon.png"
     }
 }
