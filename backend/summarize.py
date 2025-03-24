@@ -2,22 +2,56 @@ import json
 import boto3
 import os
 import time
+import re
 from clean_text import clean_text, extract_main_content
 from logger import logger
 from kendra_indexing import generate_document_id, split_into_chunks, index_in_kendra, query_kendra
 
+# Add Cognito for verifying JWT tokens
+cognito_idp = boto3.client('cognito-idp')
+dynamodb = boto3.resource('dynamodb')
+
+def verify_token(token):
+    """Verify JWT token with Cognito."""
+    try:
+        # Extract token without Bearer prefix if present
+        if token.startswith('Bearer '):
+            token = token.split(' ')[1]
+            
+        # Get user from Cognito using the token
+        response = cognito_idp.get_user(
+            AccessToken=token
+        )
+        
+        # Extract user attributes
+        user_attributes = {}
+        for attr in response.get('UserAttributes', []):
+            user_attributes[attr['Name']] = attr['Value']
+            
+        return {
+            'user_id': response.get('Username'),
+            'email': user_attributes.get('email')
+        }
+    except Exception as e:
+        logger.error(f"Token verification error: {str(e)}")
+        return None
+
 def lambda_handler(event, context):
     logger.info(f"Event received: {json.dumps(event)}")
+    
+    # Set CORS headers for all responses
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'OPTIONS,POST',
+        'Content-Type': 'application/json'
+    }
     
     # Handle OPTIONS request for CORS
     if event.get('requestContext', {}).get('http', {}).get('method') == 'OPTIONS':
         return {
             'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST'
-            },
+            'headers': headers,
             'body': ''
         }
     
@@ -25,17 +59,29 @@ def lambda_handler(event, context):
         # Parse request body
         body = json.loads(event.get('body', '{}'))
         text_content = body.get('content', '')
+        url = body.get('url', '')
         is_html = body.get('isHtml', False)
         title = body.get('title', '')
+        
+        # Check for authentication token
+        auth_header = event.get('headers', {}).get('authorization') or event.get('headers', {}).get('Authorization')
+        user_data = None
+        
+        # If authentication is enabled and token is provided, verify it
+        if auth_header:
+            user_data = verify_token(auth_header)
+            if not user_data:
+                return {
+                    'statusCode': 401,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Invalid authentication token'})
+                }
+            logger.info(f"Authenticated user: {user_data['email']}")
         
         if not text_content:
             return {
                 'statusCode': 400,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type',
-                    'Access-Control-Allow-Methods': 'OPTIONS,POST'
-                },
+                'headers': headers,
                 'body': json.dumps({'error': 'No content provided'})
             }
         
@@ -139,14 +185,36 @@ Assistant:"""
             else:
                 summary = ' '.join(sentences[:min(5, len(sentences) // 3)])
         
+        # If user is authenticated, save the summary to DynamoDB
+        if user_data:
+            try:
+                table_name = os.environ.get('USER_TABLE_NAME', 'brevity-cloud-user-data')
+                user_table = dynamodb.Table(table_name)
+                if user_table.table_name:
+                    # Save summary to DynamoDB
+                    user_table.update_item(
+                        Key={
+                            'user_id': user_data['user_id']
+                        },
+                        UpdateExpression='SET summaries = list_append(if_not_exists(summaries, :empty_list), :new_summary)',
+                        ExpressionAttributeValues={
+                            ':empty_list': [],
+                            ':new_summary': [{
+                                'timestamp': int(time.time()),
+                                'url': url,
+                                'title': title or url,
+                                'summary': summary
+                            }]
+                        }
+                    )
+                    logger.info(f"Saved summary to DynamoDB for user {user_data['email']}")
+            except Exception as e:
+                logger.error(f"Error saving to DynamoDB: {str(e)}")
+                # Continue without saving to DynamoDB
+        
         return {
             'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST',
-                'Content-Type': 'application/json'
-            },
+            'headers': headers,
             'body': json.dumps({
                 'summary': summary,
                 'used_kendra': kendra_text is not None
@@ -157,12 +225,7 @@ Assistant:"""
         logger.error(f"General error: {str(e)}")
         return {
             'statusCode': 500,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST',
-                'Content-Type': 'application/json'
-            },
+            'headers': headers,
             'body': json.dumps({
                 'error': str(e)
             })
