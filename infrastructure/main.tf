@@ -27,7 +27,7 @@ module "lambda" {
   dynamodb_table_name   = module.dynamodb.dynamodb_table_name
   cognito_user_pool_arn = module.cognito.cognito_user_pool_arn
   cognito_client_id     = module.cognito.cognito_client_id
-}
+} 
 
 module "api_gateway" {
   source                    = "./modules/api_gateway"

@@ -1,12 +1,13 @@
 {
     "manifest_version": 3,
-    "name": "AI Web Summarizer",
+    "name": "BrevityCloud AI Assistant",
     "version": "1.0",
-    "description": "Summarize web pages using AI",
+    "description": "AI-powered text summarization and analysis tool",
     "permissions": [
+        "storage",
         "activeTab",
         "scripting",
-        "storage"
+        "sidePanel"
     ],
     "host_permissions": [
         "https://*.execute-api.us-east-1.amazonaws.com/",
@@ -21,7 +22,11 @@
     },
     "action": {
         "default_popup": "popup.html",
-        "default_icon": "assets/icons/icon.png"
+        "default_icon": {
+            "16": "assets/icon16.png",
+            "48": "assets/icon48.png",
+            "128": "assets/icon128.png"
+        }
     },
     "content_scripts": [
         {
@@ -34,7 +39,12 @@
         "service_worker": "background.js",
         "type": "module"
     },
-    "content_security_policy": {
-        "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.execute-api.us-east-1.amazonaws.com https://mzu4l0fkgh.execute-api.us-east-1.amazonaws.com"
+    "side_panel": {
+        "default_path": "sidepanel.html"
+    },
+    "icons": {
+        "16": "assets/icon16.png",
+        "48": "assets/icon48.png",
+        "128": "assets/icon128.png"
     }
 }

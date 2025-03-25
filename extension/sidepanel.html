@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Assistant Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #f7f7f7;
+      display: flex;
+      flex-direction: row;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .main-panel {
+      background: white;
+      border-radius: 20px;
+      padding: 32px 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .main-panel h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .main-panel p {
+      font-size: 14px;
+      margin-bottom: 24px;
+      color: #666;
+    }
+
+    .form-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .input-field {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    .btn {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .btn-secondary {
+      background-color: #f0f0f0;
+      color: #333;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .error-message {
+      color: #dc3545;
+      font-size: 14px;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .success-message {
+      color: #28a745;
+      font-size: 14px;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      margin: 20px 0;
+      padding: 20px;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top-color: #4285f4;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      margin-top: 10px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .footer {
+      margin-top: auto;
+      display: flex;
+      gap: 8px;
+      padding: 16px 0;
+    }
+
+    .summary-container {
+      background: #f8f9fa;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .chat-responses {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .chat-response {
+      background: #e3f2fd;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.5;
+      border-left: 4px solid #4285f4;
+    }
+
+    .toggle-form {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+
+    .toggle-form a {
+      color: #4caf50;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* MAIN CONTENT */
+    .main-panel {
+      background: white;
+      border-top-left-radius: 20px;
+      border-bottom-left-radius: 20px;
+      padding: 32px 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .main-panel h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .main-panel p {
+      font-size: 16px;
+      margin-bottom: 24px;
+    }
+
+    .btn-offer {
+      background: linear-gradient(to right, #fdf2e9, #e9e5ff);
+      color: #000;
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      width: fit-content;
+    }
+
+    .btn-offer:hover {
+      transform: scale(1.02);
+    }
+
+    /* SIDEPANEL */
+    .side-panel {
+      width: 56px;
+      background: white;
+      border-top-right-radius: 20px;
+      border-bottom-right-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0;
+      box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
+    }
+
+    .icon-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .side-icon {
+      width: 24px;
+      height: 24px;
+      opacity: 0.6;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .side-icon:hover,
+    .side-icon.active {
+      opacity: 1;
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+
+    /* FOOTER BAR (Optional) */
+    .footer {
+      margin-top: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 16px;
+    }
+
+    .footer span {
+      font-size: 13px;
+      color: #4caf50;
+      font-weight: 600;
+    }
+
+    .footer-icons {
+      display: flex;
+      gap: 16px;
+    }
+
+    .footer-icons img {
+      width: 20px;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+
+    .loading-response {
+      display: none;
+      padding: 16px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      margin: 12px 0;
+      text-align: center;
+    }
+
+    .loading-response .loading-spinner {
+      width: 30px;
+      height: 30px;
+      border-width: 2px;
+    }
+
+    .loading-response .loading-text {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <!-- Auth Container -->
+  <div id="authContainer" class="main-panel">
+    <!-- Login Form -->
+    <div id="loginForm">
+      <h1>Welcome Back</h1>
+      <p>Login to continue using the AI Assistant</p>
+      <div class="form-container">
+        <input type="email" id="loginEmail" class="input-field" placeholder="Email">
+        <input type="password" id="loginPassword" class="input-field" placeholder="Password">
+        <button id="loginBtn" class="btn btn-primary">Login</button>
+      </div>
+      <div id="loginError" class="error-message"></div>
+      <div class="toggle-form">
+        Don't have an account? <a id="showRegister">Register</a>
+      </div>
+    </div>
+
+    <!-- Register Form -->
+    <div id="registerForm" style="display: none;">
+      <h1>Create Account</h1>
+      <p>Register to start using the AI Assistant</p>
+      <div class="form-container">
+        <input type="email" id="registerEmail" class="input-field" placeholder="Email">
+        <input type="password" id="registerPassword" class="input-field" placeholder="Password">
+        <button id="registerBtn" class="btn btn-primary">Register</button>
+      </div>
+      <div id="registerError" class="error-message"></div>
+      <div class="toggle-form">
+        Already have an account? <a id="showLogin">Login</a>
+      </div>
+    </div>
+
+    <!-- Verification Form -->
+    <div id="verifyForm" style="display: none;">
+      <h1>Verify Email</h1>
+      <p>Enter the verification code sent to your email</p>
+      <div class="form-container">
+        <input type="text" id="verifyCode" class="input-field" placeholder="Verification Code">
+        <button id="verifyBtn" class="btn btn-primary">Verify</button>
+        <button id="resendCodeBtn" class="btn btn-secondary">Resend Code</button>
+      </div>
+      <div id="verifyError" class="error-message"></div>
+    </div>
+
+    <div id="loading" class="loading">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Processing your request...</div>
+    </div>
+  </div>
+
+  <!-- Main Content (Summarize) Container -->
+  <div id="mainContainer" class="main-panel" style="display: none;">
+    <h1>AI Assistant</h1>
+    <p>Get instant summaries and ask questions about any webpage</p>
+    
+    <button id="summarizeBtn" class="btn btn-primary">Summarize this page</button>
+    
+    <div id="summaryContainer" class="summary-container" style="display: none;">
+      <h2>Summary</h2>
+      <div id="summaryContent"></div>
+      <div id="summaryLoading" class="loading-response" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Generating summary...</div>
+      </div>
+      <div id="chatResponses" class="chat-responses"></div>
+      <div id="chatLoading" class="loading-response" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Generating response...</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <input type="text" id="queryInput" class="input-field" placeholder="Ask a question about this page...">
+      <button id="sendQueryBtn" class="btn btn-primary">Send</button>
+    </div>
+
+    <button id="logoutBtn" class="btn btn-secondary" style="margin-top: 16px;">Logout</button>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
