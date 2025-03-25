@@ -10,8 +10,16 @@
         "sidePanel"
     ],
     "host_permissions": [
-        "https://*.execute-api.us-east-1.amazonaws.com/*"
+        "https://*.execute-api.us-east-1.amazonaws.com/",
+        "https://mzu4l0fkgh.execute-api.us-east-1.amazonaws.com/"
     ],
+    "externally_connectable": {
+        "matches": [
+            "https://*.execute-api.us-east-1.amazonaws.com/*",
+            "https://mzu4l0fkgh.execute-api.us-east-1.amazonaws.com/*",
+            "https://*.chromiumapp.org/*"
+        ]
+    },
     "action": {
         "default_popup": "popup.html",
         "default_icon": {

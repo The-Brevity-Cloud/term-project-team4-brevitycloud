@@ -24,9 +24,30 @@ The below explanation will help setup and run the demo code for the sake of show
 │   ├── requirements.txt   # Python dependencies
 │   └── summarize.py      # Lambda handler
 └── infrastructure/        # Terraform IaC
-    ├── main.tf           # Main infrastructure
-    ├── variables.tf      # Variable definitions
-    └── outputs.tf        # Output definitions
+    ├── main.tf            # Main file that calls modules
+├── variables.tf       # Variable definitions
+├── outputs.tf         # Output definitions
+├── modules/
+│   ├── api_gateway/   # API Gateway module
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── lambda/        # Lambda functions module
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── cognito/       # Cognito module
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── dynamodb/      # DynamoDB module
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   └── kendra/        # Kendra module
+│       ├── main.tf
+│       ├── variables.tf
+│       └── outputs.tf
 ```
 
 ## Setup Instructions

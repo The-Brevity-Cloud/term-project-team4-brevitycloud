@@ -69,7 +69,6 @@ infrastructure/lambda_function.zip
 .aws-sam/
 
 # Backend specific - only allow requirements.txt and summarize.py
-backend/*
-!backend/*.py
+backend/**/
 backend/typing_extensions.py
 backend/six.py

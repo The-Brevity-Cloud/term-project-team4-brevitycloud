@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', function() {
     const summarizeBtn = document.getElementById('summarize-btn');
     const openSidePanelBtn = document.getElementById('open-sidepanel-btn'); // New button
@@ -22,28 +23,65 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get the active tab
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         
-        // Extract content from the page
-        const response = await chrome.tabs.sendMessage(tab.id, { action: "extractContent" });
+        const data = await response.json();
+        console.log("Login response data:", JSON.stringify(data));
         
-        if (!response || !response.content) {
-          throw new Error("Couldn't extract content from the page.");
+        if (!response.ok) {
+            throw new Error(data.message || 'Login failed');
         }
+
+        authToken = data.token;
+        localStorage.setItem('authToken', authToken);
         
-        // Call the backend API
-        const apiResponse = await fetch(API_ENDPOINT, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            content: response.content
-          })
+        // Switch to summary view
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('summaryContent').style.display = 'block';
+        
+        // Show success message
+        showMessage('Login successful!', 'success');
+    } catch (error) {
+        console.error("Login error:", error);
+        showMessage(error.message, 'error');
+    }
+}
+
+async function register(email, password) {
+    try {
+        console.log("Attempting registration...");
+        // Use the endpoint that was identified as valid by the test
+        const url = `${AUTH_ENDPOINT}/auth/register`;
+        console.log("Registration endpoint:", url);
+        
+        const requestBody = { 
+            email, 
+            password,
+            clientId: COGNITO_CLIENT_ID
+        };
+        console.log("Registration request body:", JSON.stringify(requestBody));
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
         });
+
+        console.log("Registration response status:", response.status);
+        console.log("Registration response headers:", JSON.stringify([...response.headers]));
         
-        if (!apiResponse.ok) {
-          throw new Error('Failed to get summary from the server.');
+        const data = await response.json();
+        console.log("Registration response data:", JSON.stringify(data));
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Registration failed');
         }
+
+        // Show verification message
+        showMessage('Registration successful! Please check your email for verification code.', 'success');
         
+
         const data = await apiResponse.json();
         summaryTextEl.textContent = data.summary;
         resultEl.classList.remove('hidden');
@@ -70,4 +108,5 @@ document.addEventListener('DOMContentLoaded', function() {
         chatMessages.scrollTop = chatMessages.scrollHeight;
       }
     });
+
 });

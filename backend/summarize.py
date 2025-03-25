@@ -23,6 +23,7 @@ TEMPERATURE = 0.7
 def verify_token(token):
     """Verify JWT token with Cognito."""
     try:
+
         if token.startswith('Bearer '):
             token = token.split(' ')[1]
         response = cognito_idp.get_user(AccessToken=token)
@@ -30,6 +31,7 @@ def verify_token(token):
         return {
             'user_id': response.get('Username'),
             'email': user_attributes.get('email')
+
         }
     except Exception as e:
         logger.error(f"Token verification error: {str(e)}")
@@ -38,6 +40,7 @@ def verify_token(token):
 def call_bedrock(prompt, max_tokens=MAX_TOKENS, temperature=TEMPERATURE):
     """Make a call to Bedrock's Claude model"""
     try:
+
         response = bedrock_runtime.invoke_model(
             modelId=BEDROCK_MODEL,
             body=json.dumps({
@@ -53,6 +56,7 @@ def call_bedrock(prompt, max_tokens=MAX_TOKENS, temperature=TEMPERATURE):
             })
         )
         response_body = json.loads(response.get('body').read())
+
         
         # Handle Claude 3 response format
         if isinstance(response_body.get('content'), list):
@@ -213,6 +217,7 @@ def lambda_handler(event, context):
             query = body.get('query', '')
             context = body.get('context', '')
             
+
             if not query or not context:
                 raise ValueError("Query and context are required for chat")
             
@@ -251,6 +256,7 @@ def lambda_handler(event, context):
             'statusCode': 200,
             'headers': headers,
             'body': json.dumps(response_body)
+
         }
 
     except Exception as e:
