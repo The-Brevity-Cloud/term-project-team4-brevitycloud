@@ -1,8 +1,8 @@
 // API Configuration
-const API_ENDPOINT = 'https://8lgd1r9720.execute-api.us-east-1.amazonaws.com/prod';
+const API_ENDPOINT = 'https://ywyyi9g0gl.execute-api.us-east-1.amazonaws.com/prod';
 const AUTH_ENDPOINT = `${API_ENDPOINT}/auth`;
-const SUMMARIZE_ENDPOINT = 'https://oojx0dyhe9.execute-api.us-east-1.amazonaws.com/prod/summarize';
-const COGNITO_CLIENT_ID = '7ej1h1n3jvhk2d6nfktlcj0r7f';
+const SUMMARIZE_ENDPOINT = `${API_ENDPOINT}/summarize`;
+const COGNITO_CLIENT_ID = '5me4ai29a9dvk86igpkcijh5m6';
 
 // UI Elements
 const authContainer = document.getElementById('authContainer');
@@ -45,6 +45,9 @@ const queryInput = document.getElementById('queryInput');
 // State Management
 let currentEmail = '';
 let isAuthenticated = false;
+let currentPageContent = '';
+let currentPageTitle = '';
+let currentPageUrl = '';
 
 // Check Authentication Status on Load
 chrome.storage.local.get(['isAuthenticated', 'userEmail'], (result) => {
@@ -171,7 +174,11 @@ async function verifyEmail(code) {
         if (response.ok) {
             loginForm.style.display = 'block';
             verifyForm.style.display = 'none';
-            showError(loginError, 'Email verified! Please login.');
+            const successMessage = document.createElement('div');
+            successMessage.className = 'success-message';
+            successMessage.style.display = 'block';
+            successMessage.textContent = 'Email verified! Please login.';
+            loginForm.insertBefore(successMessage, loginForm.firstChild);
         } else {
             showError(verifyError, data.message || 'Verification failed');
         }
@@ -182,12 +189,9 @@ async function verifyEmail(code) {
     }
 }
 
-// Summarize Functions
-async function summarizePage() {
+// Content Functions
+async function getPageContent() {
     try {
-        showLoading();
-        
-        // Get current tab's content
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         const response = await chrome.tabs.sendMessage(tab.id, { action: "getPageContent" });
         
@@ -195,21 +199,47 @@ async function summarizePage() {
             throw new Error('Could not get page content');
         }
 
+        currentPageContent = response.content;
+        currentPageTitle = tab.title;
+        currentPageUrl = tab.url;
+
+        return response.content;
+    } catch (error) {
+        console.error('Error getting page content:', error);
+        throw error;
+    }
+}
+
+async function summarizePage() {
+    try {
+        const summaryLoading = document.getElementById('summaryLoading');
+        summaryLoading.style.display = 'block';
+        summaryContent.textContent = '';
+        summaryContainer.style.display = 'block';
+        
+        // Get page content if not already available
+        if (!currentPageContent) {
+            await getPageContent();
+        }
+
         // Call summarize API
-        const apiResponse = await fetch(SUMMARIZE_ENDPOINT, {
+        const response = await fetch(SUMMARIZE_ENDPOINT, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
             body: JSON.stringify({
-                text: response.content
+                action: 'summarize',
+                text: currentPageContent,
+                title: currentPageTitle,
+                url: currentPageUrl
             })
         });
 
-        const data = await apiResponse.json();
+        const data = await response.json();
         
-        if (apiResponse.ok) {
-            summaryContainer.style.display = 'block';
+        if (response.ok) {
             summaryContent.textContent = data.summary;
         } else {
             throw new Error(data.message || 'Failed to generate summary');
@@ -217,7 +247,58 @@ async function summarizePage() {
     } catch (error) {
         alert('Error: ' + error.message);
     } finally {
-        hideLoading();
+        document.getElementById('summaryLoading').style.display = 'none';
+    }
+}
+
+async function sendQuery(query) {
+    try {
+        const chatLoading = document.getElementById('chatLoading');
+        chatLoading.style.display = 'block';
+        summaryContainer.style.display = 'block';
+        
+        // Ensure we have page content
+        if (!currentPageContent) {
+            await getPageContent();
+        }
+
+        // Call chat API
+        const response = await fetch(SUMMARIZE_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'chat',
+                query: query,
+                context: currentPageContent,
+                url: currentPageUrl,
+                title: currentPageTitle
+            })
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Create and append response element
+            const responseElement = document.createElement('div');
+            responseElement.className = 'chat-response';
+            responseElement.textContent = data.response;
+            document.getElementById('chatResponses').appendChild(responseElement);
+            
+            // Scroll to the new response
+            responseElement.scrollIntoView({ behavior: 'smooth' });
+            
+            // Clear input
+            queryInput.value = '';
+        } else {
+            throw new Error(data.message || 'Failed to get response');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        document.getElementById('chatLoading').style.display = 'none';
     }
 }
 
@@ -255,13 +336,18 @@ showLoginLink.addEventListener('click', () => {
 summarizeBtn.addEventListener('click', summarizePage);
 
 sendQueryBtn.addEventListener('click', () => {
-    // Implement query functionality when backend is ready
-    alert('Query functionality will be implemented soon!');
+    const query = queryInput.value.trim();
+    if (query) {
+        sendQuery(query);
+    }
 });
 
 logoutBtn.addEventListener('click', () => {
     isAuthenticated = false;
     currentEmail = '';
+    currentPageContent = '';
+    currentPageTitle = '';
+    currentPageUrl = '';
     chrome.storage.local.remove(['isAuthenticated', 'userEmail']);
     showAuthContainer();
 }); 

@@ -101,6 +101,27 @@
       display: none;
       text-align: center;
       margin: 20px 0;
+      padding: 20px;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top-color: #4285f4;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      margin-top: 10px;
+      color: #666;
+      font-size: 14px;
     }
 
     .footer {
@@ -117,6 +138,22 @@
       margin-bottom: 20px;
       font-size: 14px;
       line-height: 1.5;
+    }
+
+    .chat-responses {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .chat-response {
+      background: #e3f2fd;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.5;
+      border-left: 4px solid #4285f4;
     }
 
     .toggle-form {
@@ -238,6 +275,27 @@
       cursor: pointer;
       opacity: 0.7;
     }
+
+    .loading-response {
+      display: none;
+      padding: 16px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      margin: 12px 0;
+      text-align: center;
+    }
+
+    .loading-response .loading-spinner {
+      width: 30px;
+      height: 30px;
+      border-width: 2px;
+    }
+
+    .loading-response .loading-text {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #666;
+    }
   </style>
 </head>
 <body>
@@ -286,7 +344,8 @@
     </div>
 
     <div id="loading" class="loading">
-      Processing...
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Processing your request...</div>
     </div>
   </div>
 
@@ -300,6 +359,15 @@
     <div id="summaryContainer" class="summary-container" style="display: none;">
       <h2>Summary</h2>
       <div id="summaryContent"></div>
+      <div id="summaryLoading" class="loading-response" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Generating summary...</div>
+      </div>
+      <div id="chatResponses" class="chat-responses"></div>
+      <div id="chatLoading" class="loading-response" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Generating response...</div>
+      </div>
     </div>
 
     <div class="footer">

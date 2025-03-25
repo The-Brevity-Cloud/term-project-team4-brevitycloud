@@ -14,7 +14,11 @@
     ],
     "action": {
         "default_popup": "popup.html",
-        "default_icon": "assets/icons/icon.png"
+        "default_icon": {
+            "16": "assets/icon16.png",
+            "48": "assets/icon48.png",
+            "128": "assets/icon128.png"
+        }
     },
     "content_scripts": [
         {
@@ -31,6 +35,8 @@
         "default_path": "sidepanel.html"
     },
     "icons": {
-        "16": "assets/icons/icon.png"
+        "16": "assets/icon16.png",
+        "48": "assets/icon48.png",
+        "128": "assets/icon128.png"
     }
 }
