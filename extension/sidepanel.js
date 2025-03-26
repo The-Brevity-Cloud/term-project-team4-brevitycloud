@@ -1,8 +1,8 @@
 // API Configuration
-const API_ENDPOINT = 'https://ywyyi9g0gl.execute-api.us-east-1.amazonaws.com/prod';
+const API_ENDPOINT = 'https://utfoy8el8a.execute-api.us-east-1.amazonaws.com/prod';
 const AUTH_ENDPOINT = `${API_ENDPOINT}/auth`;
 const SUMMARIZE_ENDPOINT = `${API_ENDPOINT}/summarize`;
-const COGNITO_CLIENT_ID = '5me4ai29a9dvk86igpkcijh5m6';
+const COGNITO_CLIENT_ID = '1kg77rmnscaa6ncmt61ae9u64v';
 
 // UI Elements
 const authContainer = document.getElementById('authContainer');
@@ -84,6 +84,13 @@ function showMainContainer() {
 function showAuthContainer() {
     authContainer.style.display = 'flex';
     mainContainer.style.display = 'none';
+}
+
+function clearFormFields(form) {
+    const inputs = form.getElementsByTagName('input');
+    for (let input of inputs) {
+        input.value = '';
+    }
 }
 
 // Authentication Functions
@@ -174,6 +181,8 @@ async function verifyEmail(code) {
         if (response.ok) {
             loginForm.style.display = 'block';
             verifyForm.style.display = 'none';
+            hideError(loginError);
+            clearFormFields(loginForm);
             const successMessage = document.createElement('div');
             successMessage.className = 'success-message';
             successMessage.style.display = 'block';
@@ -326,11 +335,19 @@ resendCodeBtn.addEventListener('click', async () => {
 showRegisterLink.addEventListener('click', () => {
     loginForm.style.display = 'none';
     registerForm.style.display = 'block';
+    hideError(loginError);
+    hideError(registerError);
+    clearFormFields(loginForm);
+    clearFormFields(registerForm);
 });
 
 showLoginLink.addEventListener('click', () => {
     registerForm.style.display = 'none';
     loginForm.style.display = 'block';
+    hideError(loginError);
+    hideError(registerError);
+    clearFormFields(loginForm);
+    clearFormFields(registerForm);
 });
 
 summarizeBtn.addEventListener('click', summarizePage);
