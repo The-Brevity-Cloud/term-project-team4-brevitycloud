@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatMessages = document.getElementById('chat-messages'); // New chat messages container
     
     // Replace with your API endpoint from AWS
-    const API_ENDPOINT = 'https://oojx0dyhe9.execute-api.us-east-1.amazonaws.com/prod/summarize';
+    const API_ENDPOINT = 'https://z5n7ea4ds5.execute-api.us-east-1.amazonaws.com/prod';
     
     summarizeBtn.addEventListener('click', async () => {
       loadingEl.classList.remove('hidden');

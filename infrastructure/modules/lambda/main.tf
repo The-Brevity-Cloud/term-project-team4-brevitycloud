@@ -80,6 +80,7 @@ resource "aws_lambda_function" "summarize_lambda" {
       KENDRA_INDEX_ID  = var.kendra_index_id
       USER_TABLE_NAME  = var.dynamodb_table_name
       COGNITO_CLIENT_ID = var.cognito_client_id
+      S3_BUCKET_NAME    = var.s3_bucket_name
     }
   }
 }
@@ -100,4 +101,35 @@ resource "aws_lambda_function" "auth_lambda" {
       COGNITO_CLIENT_ID = var.cognito_client_id
     }
   }
+}
+
+# Adding S3 access permissions here, as adding it inside the s3 modules, resulted in a circular dependency error
+resource "aws_iam_policy" "lambda_s3_access" {
+  name        = "${var.project_name}-lambda-s3-access"
+  description = "Allow Lambda to access S3 bucket for webpage content"
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:ListBucket",
+          "s3:HeadObject"
+        ]
+        Resource = [
+          var.s3_bucket_arn,
+          "${var.s3_bucket_arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# Attach S3 policy to Lambda role
+resource "aws_iam_role_policy_attachment" "lambda_s3_attachment" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_s3_access.arn
 }
