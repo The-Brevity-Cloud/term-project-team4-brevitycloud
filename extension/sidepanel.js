@@ -1,8 +1,8 @@
 // API Configuration
-const API_ENDPOINT = 'https://indvkbp8g6.execute-api.us-east-1.amazonaws.com/prod';
+const API_ENDPOINT = 'https://q3rh9ezj2h.execute-api.us-east-1.amazonaws.com/prod';
 const AUTH_ENDPOINT = `${API_ENDPOINT}/auth`;
 const SUMMARIZE_ENDPOINT = `${API_ENDPOINT}/summarize`;
-const COGNITO_CLIENT_ID = '2i62a931s6nkt6og6lbg5rtcki';
+const COGNITO_CLIENT_ID = '1v80kfhvbr8edam20v6819pnh6';
 
 // UI Elements
 const authContainer = document.getElementById('authContainer');
@@ -48,6 +48,10 @@ let isAuthenticated = false;
 let currentPageContent = '';
 let currentPageTitle = '';
 let currentPageUrl = '';
+
+const kendraModeBtn = document.getElementById('kendraModeBtn');
+const bedrockModeBtn = document.getElementById('bedrockModeBtn');
+let useKendra = true; // Default to Kendra
 
 // Check Authentication Status on Load
 chrome.storage.local.get(['isAuthenticated', 'userEmail'], (result) => {
@@ -240,7 +244,8 @@ async function summarizePage() {
                 action: 'summarize',
                 text: currentPageContent,
                 title: currentPageTitle,
-                url: currentPageUrl
+                url: currentPageUrl,
+                use_kendra: useKendra
             })
         });
 
@@ -281,7 +286,8 @@ async function sendQuery(query) {
                 query: query,
                 context: currentPageContent,
                 url: currentPageUrl,
-                title: currentPageTitle
+                title: currentPageTitle,
+                use_kendra: useKendra 
             })
         });
 
@@ -358,3 +364,15 @@ logoutBtn.addEventListener('click', () => {
     chrome.storage.local.remove(['isAuthenticated', 'userEmail']);
     showAuthContainer();
 }); 
+
+kendraModeBtn.addEventListener('click', () => {
+    useKendra = true;
+    kendraModeBtn.classList.add('toggle-active');
+    bedrockModeBtn.classList.remove('toggle-active');
+  });
+  
+  bedrockModeBtn.addEventListener('click', () => {
+    useKendra = false;
+    bedrockModeBtn.classList.add('toggle-active');
+    kendraModeBtn.classList.remove('toggle-active');
+  });

@@ -80,6 +80,7 @@ def handle_summarize(cleaned_text, title, url, kendra_index_id=None, use_kendra=
         kendra_used = False
         
         if kendra_index_id and use_kendra:
+            logger.info(f"Using Kendra")
             try:
                 doc_id = url_hash
                 
@@ -126,6 +127,7 @@ def handle_summarize(cleaned_text, title, url, kendra_index_id=None, use_kendra=
         
         if not kendra_used and not use_kendra:
             # Create summarization prompt for Bedrock
+            logger.info(f"Using Bedrock")
             prompt = f"""Please provide a concise summary of the following text in 3-5 sentences, focusing on the main points:
 
 {summarization_text}
@@ -185,6 +187,7 @@ def handle_chat(query, context, url=None, kendra_index_id=None, use_kendra=True)
         kendra_used = False
         
         if kendra_index_id and context_doc_id and use_kendra:
+            logger.info(f"Using Kendra")
             try:
                 indexed_in_kendra = False
                 if url:
@@ -233,6 +236,7 @@ def handle_chat(query, context, url=None, kendra_index_id=None, use_kendra=True)
         
         # Only proceed with Bedrock if Kendra succeeded or if fallback is allowed
         if kendra_used or not use_kendra:
+            logger.info(f"Using Bedrock")
             # Create chat prompt
             prompt = f"""You are an AI assistant helping with questions about a webpage. Use the following context to answer the user's question. Only use information from the provided context.
 
@@ -288,7 +292,7 @@ def lambda_handler(event, context):
         
         # Get Kendra index ID
         kendra_index_id = os.environ.get('KENDRA_INDEX_ID')
-        use_kendra = True # For testing, need to call later using an param in API call from frontend
+        use_kendra = body.get('use_kendra', True) 
         
         if action == 'summarize':
             # Handle summarization request
