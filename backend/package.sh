@@ -2,7 +2,7 @@
 
 # Create a temporary directory for packaging
 mkdir -p lambda_package
-cp summarize.py clean_text.py logger.py kendra_indexing.py lambda_package/
+cp summarize.py clean_text.py logger.py kendra_indexing.py s3_helper.py lambda_package/ 
 
 # Install dependencies
 pip install boto3 beautifulsoup4 python-jose -t lambda_package/

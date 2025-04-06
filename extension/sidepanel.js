@@ -1,8 +1,8 @@
 // API Configuration
-const API_ENDPOINT = 'https://utfoy8el8a.execute-api.us-east-1.amazonaws.com/prod';
+const API_ENDPOINT = 'https://q3rh9ezj2h.execute-api.us-east-1.amazonaws.com/prod';
 const AUTH_ENDPOINT = `${API_ENDPOINT}/auth`;
 const SUMMARIZE_ENDPOINT = `${API_ENDPOINT}/summarize`;
-const COGNITO_CLIENT_ID = '1kg77rmnscaa6ncmt61ae9u64v';
+const COGNITO_CLIENT_ID = '1v80kfhvbr8edam20v6819pnh6';
 
 // UI Elements
 const authContainer = document.getElementById('authContainer');
@@ -49,6 +49,10 @@ let currentPageContent = '';
 let currentPageTitle = '';
 let currentPageUrl = '';
 
+const kendraModeBtn = document.getElementById('kendraModeBtn');
+const bedrockModeBtn = document.getElementById('bedrockModeBtn');
+let useKendra = true; // Default to Kendra
+
 // Check Authentication Status on Load
 chrome.storage.local.get(['isAuthenticated', 'userEmail'], (result) => {
     if (result.isAuthenticated) {
@@ -84,13 +88,6 @@ function showMainContainer() {
 function showAuthContainer() {
     authContainer.style.display = 'flex';
     mainContainer.style.display = 'none';
-}
-
-function clearFormFields(form) {
-    const inputs = form.getElementsByTagName('input');
-    for (let input of inputs) {
-        input.value = '';
-    }
 }
 
 // Authentication Functions
@@ -181,8 +178,6 @@ async function verifyEmail(code) {
         if (response.ok) {
             loginForm.style.display = 'block';
             verifyForm.style.display = 'none';
-            hideError(loginError);
-            clearFormFields(loginForm);
             const successMessage = document.createElement('div');
             successMessage.className = 'success-message';
             successMessage.style.display = 'block';
@@ -209,8 +204,8 @@ async function getPageContent() {
         }
 
         currentPageContent = response.content;
-        currentPageTitle = tab.title;
-        currentPageUrl = tab.url;
+        currentPageTitle = response.title || tab.title;
+        currentPageUrl = response.url || tab.url;
 
         return response.content;
     } catch (error) {
@@ -231,6 +226,13 @@ async function summarizePage() {
             await getPageContent();
         }
 
+        // Ensure we have a URL
+        if (!currentPageUrl) {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            currentPageUrl = tab.url;
+            currentPageTitle = currentPageTitle || tab.title;
+        }
+
         // Call summarize API
         const response = await fetch(SUMMARIZE_ENDPOINT, {
             method: 'POST',
@@ -242,7 +244,8 @@ async function summarizePage() {
                 action: 'summarize',
                 text: currentPageContent,
                 title: currentPageTitle,
-                url: currentPageUrl
+                url: currentPageUrl,
+                use_kendra: useKendra
             })
         });
 
@@ -283,7 +286,8 @@ async function sendQuery(query) {
                 query: query,
                 context: currentPageContent,
                 url: currentPageUrl,
-                title: currentPageTitle
+                title: currentPageTitle,
+                use_kendra: useKendra 
             })
         });
 
@@ -335,19 +339,11 @@ resendCodeBtn.addEventListener('click', async () => {
 showRegisterLink.addEventListener('click', () => {
     loginForm.style.display = 'none';
     registerForm.style.display = 'block';
-    hideError(loginError);
-    hideError(registerError);
-    clearFormFields(loginForm);
-    clearFormFields(registerForm);
 });
 
 showLoginLink.addEventListener('click', () => {
     registerForm.style.display = 'none';
     loginForm.style.display = 'block';
-    hideError(loginError);
-    hideError(registerError);
-    clearFormFields(loginForm);
-    clearFormFields(registerForm);
 });
 
 summarizeBtn.addEventListener('click', summarizePage);
@@ -368,3 +364,15 @@ logoutBtn.addEventListener('click', () => {
     chrome.storage.local.remove(['isAuthenticated', 'userEmail']);
     showAuthContainer();
 }); 
+
+kendraModeBtn.addEventListener('click', () => {
+    useKendra = true;
+    kendraModeBtn.classList.add('toggle-active');
+    bedrockModeBtn.classList.remove('toggle-active');
+  });
+  
+  bedrockModeBtn.addEventListener('click', () => {
+    useKendra = false;
+    bedrockModeBtn.classList.add('toggle-active');
+    kendraModeBtn.classList.remove('toggle-active');
+  });

@@ -29,3 +29,26 @@ resource "aws_kendra_index" "webpage_index" {
   edition     = "DEVELOPER_EDITION"
   role_arn    = aws_iam_role.kendra_role.arn
 }
+
+resource "aws_iam_role_policy" "kendra_s3_access" {
+  name = "${var.project_name}-kendra-s3-access"
+  role = aws_iam_role.kendra_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.project_name}-webpage-content",
+          "arn:aws:s3:::${var.project_name}-webpage-content/*"
+        ]
+      }
+    ]
+  })
+}

@@ -38,3 +38,13 @@ variable "cognito_client_id" {
   description = "ID of the Cognito user pool client"
   type        = string
 }
+
+variable "s3_bucket_name" {
+  description = "Name of the S3 bucket for webpage content storage"
+  type        = string
+}
+
+variable "s3_bucket_arn" {
+  description = "ARN of the S3 bucket for webpage content"
+  type        = string
+}

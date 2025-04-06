@@ -6,6 +6,7 @@ import re
 from clean_text import clean_text, extract_main_content
 from logger import logger
 from kendra_indexing import generate_document_id, split_into_chunks, index_in_kendra, query_kendra
+from s3_helper import generate_url_hash, check_document_exists, store_document, get_document
 
 # Initialize AWS clients
 cognito_idp = boto3.client('cognito-idp')
@@ -68,58 +69,176 @@ def call_bedrock(prompt, max_tokens=MAX_TOKENS, temperature=TEMPERATURE):
         logger.error(f"Bedrock API error: {str(e)}", exc_info=True)
         return None
 
-def handle_summarize(cleaned_text, title, kendra_index_id=None):
-    """Handle summarization request"""
+def handle_summarize(cleaned_text, title, url, kendra_index_id=None, use_kendra=True):
     try:
-        # Use Kendra if available
+        url_hash = generate_url_hash(url)
+        existing_doc = check_document_exists(url_hash)
+        
+        store_document(url, title, cleaned_text)
+        
         kendra_text = None
-        if kendra_index_id:
+        kendra_used = False
+        
+        if kendra_index_id and use_kendra:
+            logger.info(f"Using Kendra")
             try:
-                doc_id = generate_document_id(cleaned_text, title)
-                chunks = split_into_chunks(cleaned_text)
-                index_responses = index_in_kendra(chunks, doc_id, title, kendra_index_id)
-                time.sleep(2)  # Wait for indexing
+                doc_id = url_hash
+                
+                if not existing_doc or existing_doc.get('indexed_status') != 'complete':
+                    chunks = split_into_chunks(cleaned_text)
+                    index_responses = index_in_kendra(chunks, doc_id, url, kendra_index_id)
+                    
+                    logger.info("Waiting for Kendra indexing to complete...")
+                    
+                    max_retries = 5
+                    base_wait_time = 5  # Start with 5 seconds
+                    for retry in range(max_retries):
+                        # Wait with exponential backoff
+                        wait_time = base_wait_time * (2 ** retry)
+                        time.sleep(wait_time)
+                        
+                        try:
+                            test_query = query_kendra(doc_id, kendra_index_id)
+                            if test_query:
+                                logger.info(f"Kendra indexing complete after {wait_time} seconds")
+                                break
+                            else:
+                                logger.info(f"Kendra indexing still in progress, retry {retry+1}/{max_retries}")
+                        except Exception as e:
+                            logger.warning(f"Error checking Kendra indexing status: {str(e)}")
+                
                 kendra_text = query_kendra(doc_id, kendra_index_id)
+                
+                if kendra_text:
+                    kendra_used = True
+                else:
+                    logger.warning("Kendra indexing appears to be incomplete. No results returned.")
+                    
+                    if use_kendra:
+                        raise ValueError("Kendra indexing requested but no results available")
+            
             except Exception as e:
                 logger.error(f"Kendra processing error: {str(e)}", exc_info=True)
+                
+                if use_kendra:
+                    raise ValueError(f"Kendra processing failed: {str(e)}")
 
-        # Use Kendra-enhanced text or original text
         summarization_text = kendra_text if kendra_text else cleaned_text
         
-        # Create summarization prompt
-        prompt = f"""Please provide a concise summary of the following text in 3-5 sentences, focusing on the main points:
+        if not kendra_used and not use_kendra:
+            # Create summarization prompt for Bedrock
+            logger.info(f"Using Bedrock")
+            prompt = f"""Please provide a concise summary of the following text in 3-5 sentences, focusing on the main points:
 
 {summarization_text}
 
 Please provide a clear, well-structured summary that captures the essential information in 3-5 sentences."""
 
-        # Get summary from Bedrock
-        summary = call_bedrock(prompt)
-        if not summary:
-            # Fallback to extractive summarization
-            sentences = re.split(r'(?<=[.!?])\s+', cleaned_text)
-            summary = ' '.join(sentences[:min(5, len(sentences) // 3)])
+            # Get summary from Bedrock
+            summary = call_bedrock(prompt)
+            if not summary:
+                # Fallback to extractive summarization
+                sentences = re.split(r'(?<=[.!?])\s+', cleaned_text)
+                summary = ' '.join(sentences[:min(5, len(sentences) // 3)])
+                
+            return summary, False  # Bedrock was used
+            
+        elif kendra_used:
+            # Create summarization prompt with Kendra-enhanced content
+            prompt = f"""Please provide a concise summary of the following text in 3-5 sentences, focusing on the main points:
 
-        return summary, kendra_text is not None
+{summarization_text}
+
+Please provide a clear, well-structured summary that captures the essential information in 3-5 sentences."""
+
+            # Get summary from Bedrock
+            summary = call_bedrock(prompt)
+            if not summary:
+                # Fallback to extractive summarization
+                sentences = re.split(r'(?<=[.!?])\s+', kendra_text)
+                summary = ' '.join(sentences[:min(5, len(sentences) // 3)])
+                
+            return summary, True  # Kendra was used
+            
+        else:
+            # Should not reach here if use_kendra=True, but just in case
+            raise ValueError("Kendra processing was requested but failed")
 
     except Exception as e:
         logger.error(f"Summarization error: {str(e)}", exc_info=True)
         raise
 
-def handle_chat(query, context, kendra_index_id=None):
-    """Handle chat request"""
+def handle_chat(query, context, url=None, kendra_index_id=None, use_kendra=True):
+    """Handle chat request with S3 integration and proper Kendra processing"""
     try:
-        # Query Kendra for relevant context if available
+        context_doc_id = None
+        if url:
+            context_doc_id = generate_url_hash(url)
+            
+            existing_doc = check_document_exists(context_doc_id)
+            if existing_doc:
+                s3_doc = get_document(context_doc_id)
+                if s3_doc and s3_doc.get('cleaned_text'):
+                    context = s3_doc.get('cleaned_text')
+        elif context:
+            context_doc_id = generate_document_id(context)
+        
         kendra_context = None
-        if kendra_index_id:
+        kendra_used = False
+        
+        if kendra_index_id and context_doc_id and use_kendra:
+            logger.info(f"Using Kendra")
             try:
-                kendra_context = query_kendra(generate_document_id(context), kendra_index_id)
+                indexed_in_kendra = False
+                if url:
+                    existing_doc = check_document_exists(context_doc_id)
+                    if existing_doc and existing_doc.get('indexed_status') == 'complete':
+                        indexed_in_kendra = True
+                
+                if not indexed_in_kendra and url:
+                    logger.info(f"Document {url} not yet indexed in Kendra, waiting for indexing...")
+                    
+                    max_retries = 5
+                    base_wait_time = 5  # Start with 5 seconds
+                    for retry in range(max_retries):
+                        # Wait with exponential backoff
+                        wait_time = base_wait_time * (2 ** retry)
+                        time.sleep(wait_time)
+                        
+                        # Check if document is now indexed
+                        existing_doc = check_document_exists(context_doc_id)
+                        if existing_doc and existing_doc.get('indexed_status') == 'complete':
+                            indexed_in_kendra = True
+                            logger.info(f"Document now indexed in Kendra after {wait_time} seconds")
+                            break
+                        else:
+                            logger.info(f"Document indexing still in progress, retry {retry+1}/{max_retries}")
+                
+                # Query Kendra with the specific question
+                kendra_context = query_kendra(context_doc_id, kendra_index_id, query)
+                
+                if kendra_context:
+                    kendra_used = True
+                    logger.info("Successfully retrieved context from Kendra")
+                else:
+                    logger.warning("Kendra query returned no results")
+                    
+                    if use_kendra:
+                        raise ValueError("Kendra was requested but no results available")
+                
             except Exception as e:
                 logger.error(f"Kendra query error: {str(e)}", exc_info=True)
+                
+                if use_kendra:
+                    raise ValueError(f"Kendra processing failed: {str(e)}")
 
-        # Create chat prompt
-        context_text = kendra_context if kendra_context else context
-        prompt = f"""You are an AI assistant helping with questions about a webpage. Use the following context to answer the user's question. Only use information from the provided context.
+        context_text = kendra_context if kendra_used else context
+        
+        # Only proceed with Bedrock if Kendra succeeded or if fallback is allowed
+        if kendra_used or not use_kendra:
+            logger.info(f"Using Bedrock")
+            # Create chat prompt
+            prompt = f"""You are an AI assistant helping with questions about a webpage. Use the following context to answer the user's question. Only use information from the provided context.
 
 Context:
 {context_text}
@@ -129,12 +248,15 @@ User Question:
 
 Please provide a clear and concise answer based solely on the context provided."""
 
-        # Get response from Bedrock
-        response = call_bedrock(prompt, max_tokens=1000)  # Longer response for chat
-        if not response:
-            return "I apologize, but I'm having trouble generating a response. Please try again."
+            # Get response from Bedrock
+            response = call_bedrock(prompt, max_tokens=1000)  # Longer response for chat
+            if not response:
+                return "I apologize, but I'm having trouble generating a response. Please try again."
 
-        return response
+            return response, kendra_used
+        else:
+            # Should not reach here if use_kendra=True, but just in case
+            raise ValueError("Kendra processing was requested but failed")
 
     except Exception as e:
         logger.error(f"Chat error: {str(e)}", exc_info=True)
@@ -170,6 +292,7 @@ def lambda_handler(event, context):
         
         # Get Kendra index ID
         kendra_index_id = os.environ.get('KENDRA_INDEX_ID')
+        use_kendra = body.get('use_kendra', True) 
         
         if action == 'summarize':
             # Handle summarization request
@@ -185,7 +308,7 @@ def lambda_handler(event, context):
             logger.info(f"Cleaned text length: {len(cleaned_text)}")
             
             # Get summary
-            summary, used_kendra = handle_summarize(cleaned_text, title, kendra_index_id)
+            summary, used_kendra = handle_summarize(cleaned_text, title, url, kendra_index_id, use_kendra)
             
             # Save to DynamoDB if authenticated
             if user_data:
@@ -214,6 +337,7 @@ def lambda_handler(event, context):
             }
         elif action == 'chat':
             # Handle chat request
+            url = body.get('url')
             query = body.get('query', '')
             context = body.get('context', '')
             
@@ -222,7 +346,7 @@ def lambda_handler(event, context):
                 raise ValueError("Query and context are required for chat")
             
             # Get chat response
-            response = handle_chat(query, context, kendra_index_id)
+            response = handle_chat(query, context, url, kendra_index_id, use_kendra)
             
             # Save to DynamoDB if authenticated
             if user_data:

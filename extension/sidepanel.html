@@ -296,6 +296,45 @@
       font-size: 13px;
       color: #666;
     }
+    .model-selector {
+    margin-bottom: 20px;
+    background: #f5f5f5;
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .model-selector p {
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .toggle-buttons {
+    display: flex;
+    gap: 8px;
+  }
+
+  .toggle-btn {
+    padding: 8px 12px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    background: white;
+    flex: 1;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s ease;
+  }
+
+  .toggle-active {
+    background: #4caf50;
+    color: white;
+    border-color: #4caf50;
+    font-weight: 600;
+  }
+
+  .toggle-btn:hover:not(.toggle-active) {
+    background: #f0f0f0;
+  }
   </style>
 </head>
 <body>
@@ -353,7 +392,15 @@
   <div id="mainContainer" class="main-panel" style="display: none;">
     <h1>AI Assistant</h1>
     <p>Get instant summaries and ask questions about any webpage</p>
-    
+
+    <div class="model-selector">
+      <p>Choose processing model:</p>
+      <div class="toggle-buttons">
+        <button id="kendraModeBtn" class="toggle-btn toggle-active">Kendra</button>
+        <button id="bedrockModeBtn" class="toggle-btn">Bedrock</button>
+      </div>
+    </div>
+
     <button id="summarizeBtn" class="btn btn-primary">Summarize this page</button>
     
     <div id="summaryContainer" class="summary-container" style="display: none;">
