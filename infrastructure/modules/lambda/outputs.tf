@@ -3,6 +3,11 @@ output "lambda_role_arn" {
   description = "ARN of the Lambda IAM role"
 }
 
+output "lambda_role_name" {
+  value = aws_iam_role.lambda_role.name
+  description = "Name of the Lambda IAM role"
+}
+
 output "summarize_lambda_arn" {
   value = aws_lambda_function.summarize_lambda.arn
   description = "ARN of the summarize Lambda function"

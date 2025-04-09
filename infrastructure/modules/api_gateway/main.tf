@@ -109,6 +109,16 @@ resource "aws_apigatewayv2_route" "auth_routes" {
   target    = "integrations/${aws_apigatewayv2_integration.auth_lambda_integration.id}"
 }
 
+# History Route (uses summarize lambda integration)
+resource "aws_apigatewayv2_route" "history_route" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /history"
+  target    = "integrations/${aws_apigatewayv2_integration.summarize_lambda_integration.id}"
+  # Add authorization if needed (e.g., JWT authorizer)
+  # authorization_type = "JWT"
+  # authorizer_id      = aws_apigatewayv2_authorizer.jwt_authorizer.id 
+}
+
 # Summarize Lambda Permission
 resource "aws_lambda_permission" "summarize_lambda_permission" {
   statement_id  = "AllowExecutionFromAPIGateway"

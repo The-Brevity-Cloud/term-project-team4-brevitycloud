@@ -7,7 +7,8 @@
         "storage",
         "activeTab",
         "scripting",
-        "sidePanel"
+        "sidePanel",
+        "contextMenus"
     ],
     "host_permissions": [
         "https://*.execute-api.us-east-1.amazonaws.com/",
@@ -42,6 +43,15 @@
     "side_panel": {
         "default_path": "sidepanel.html"
     },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "permission.html", 
+                "requestPermission.js"
+            ],
+            "matches": ["<all_urls>"]
+        }
+    ],
     "icons": {
         "16": "assets/icon16.png",
         "48": "assets/icon48.png",

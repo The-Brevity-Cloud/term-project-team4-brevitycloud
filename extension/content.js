@@ -71,3 +71,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     return true; // Required for async response
 });
+
+// Function to inject the permission-requesting iframe
+function injectMicrophonePermissionIframe() {
+    const iframeId = "brevity-mic-permission-iframe";
+    // Check if iframe already exists
+    if (document.getElementById(iframeId)) {
+        console.log("Permission iframe already exists.");
+        return; 
+    }
+
+    console.log("Injecting microphone permission iframe...");
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("hidden", "hidden");
+    iframe.setAttribute("id", iframeId);
+    iframe.setAttribute("allow", "microphone"); // Crucial for permission request
+    iframe.src = chrome.runtime.getURL("permission.html");
+    
+    document.body.appendChild(iframe);
+
+    // Optional: Remove iframe after a short delay
+    // setTimeout(() => {
+    //     const frameToRemove = document.getElementById(iframeId);
+    //     if (frameToRemove) {
+    //         frameToRemove.remove();
+    //         console.log("Permission iframe removed.");
+    //     }
+    // }, 5000); // Remove after 5 seconds
+}
+
+// Listen for message from background script to inject the iframe
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "injectMicPermissionIframe") {
+        injectMicrophonePermissionIframe();
+        sendResponse({ status: "iframe injection initiated" });
+    }
+    // Keep listener open if other async actions might occur
+    // return true; 
+});

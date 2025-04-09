@@ -1,8 +1,8 @@
 // API Configuration
-const API_ENDPOINT = 'https://q3rh9ezj2h.execute-api.us-east-1.amazonaws.com/prod';
+const API_ENDPOINT = 'https://m9kcxanho0.execute-api.us-east-1.amazonaws.com/prod';
 const AUTH_ENDPOINT = `${API_ENDPOINT}/auth`;
 const SUMMARIZE_ENDPOINT = `${API_ENDPOINT}/summarize`;
-const COGNITO_CLIENT_ID = '1v80kfhvbr8edam20v6819pnh6';
+const COGNITO_CLIENT_ID = '3fmvt2ic67h32ds88imi1v14bl';
 
 // UI Elements
 const authContainer = document.getElementById('authContainer');
@@ -27,6 +27,23 @@ const resendCodeBtn = document.getElementById('resendCodeBtn');
 const summarizeBtn = document.getElementById('summarizeBtn');
 const sendQueryBtn = document.getElementById('sendQueryBtn');
 const logoutBtn = document.getElementById('logoutBtn');
+const historyBtn = document.getElementById('historyBtn');
+const backToMainBtn = document.getElementById('backToMainBtn');
+
+// Mic Button & Recording Elements
+const micBtn = document.getElementById('micBtn');
+let mediaRecorder;
+let audioChunks = [];
+let isRecording = false;
+const micActiveColor = '#f44336'; // Color for mic when recording
+const micInactiveColor = '#666'; // Default mic color
+
+// Rekognition Elements
+const rekognitionContainer = document.getElementById('rekognitionContainer');
+const rekognitionImage = document.getElementById('rekognitionImage');
+const rekognitionLoading = document.getElementById('rekognitionLoading');
+const rekognitionText = document.getElementById('rekognitionText');
+const rekognitionError = document.getElementById('rekognitionError');
 
 // Error/Success Messages
 const loginError = document.getElementById('loginError');
@@ -41,6 +58,12 @@ const showLoginLink = document.getElementById('showLogin');
 const summaryContainer = document.getElementById('summaryContainer');
 const summaryContent = document.getElementById('summaryContent');
 const queryInput = document.getElementById('queryInput');
+
+// History Elements
+const historyContainer = document.getElementById('historyContainer');
+const historyLoading = document.getElementById('historyLoading');
+const historyContent = document.getElementById('historyContent');
+const historyError = document.getElementById('historyError');
 
 // State Management
 let currentEmail = '';
@@ -90,35 +113,90 @@ function showAuthContainer() {
     mainContainer.style.display = 'none';
 }
 
+// Function to toggle main view and history view
+function showHistoryView() {
+    // Hide other main content sections if they are potentially visible
+    summaryContainer.style.display = 'none';
+    rekognitionContainer.style.display = 'none';
+    document.querySelector('.model-selector').style.display = 'none'; // Hide model selector
+    document.querySelector('.footer').style.display = 'none'; // Hide chat input footer
+    summarizeBtn.style.display = 'none'; 
+    
+    historyContainer.style.display = 'block';
+    hideError(historyError);
+}
+
+function showMainContentView() {
+    historyContainer.style.display = 'none';
+    
+    // Restore visibility of main elements
+    document.querySelector('.model-selector').style.display = 'block'; 
+    document.querySelector('.footer').style.display = 'flex'; 
+    summarizeBtn.style.display = 'block';
+    // summaryContainer might need to be shown depending on state, handle as needed
+    // rekognitionContainer might need to be shown depending on state, handle as needed
+}
+
 // Authentication Functions
 async function login(email, password) {
     try {
         showLoading();
-        const response = await fetch(`${AUTH_ENDPOINT}/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                email,
-                password,
-                clientId: COGNITO_CLIENT_ID
-            })
-        });
-
-        const data = await response.json();
+        hideError(loginError); 
         
-        if (response.ok) {
-            isAuthenticated = true;
-            currentEmail = email;
-            chrome.storage.local.set({ isAuthenticated: true, userEmail: email });
-            showMainContainer();
-        } else {
-            showError(loginError, data.message || 'Login failed');
+        let response;
+        try {
+            response = await fetch(`${AUTH_ENDPOINT}/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ email, password, clientId: COGNITO_CLIENT_ID })
+            });
+        } catch (networkError) {
+            // Catch actual network/fetch errors
+            console.error("Login fetch/network error:", networkError);
+            showError(loginError, 'Network error: Could not reach login service.');
+            hideLoading();
+            return; // Stop execution
         }
+
+        let data;
+        try {
+            // Check if response is ok before trying to parse JSON
+            if (!response.ok) {
+                // Try to parse error response, but don't fail if it's not JSON
+                 data = await response.json().catch(() => ({ message: `Login failed with status: ${response.status}` }));
+                 throw new Error(data.message || `HTTP error! status: ${response.status}`);
+            }
+            data = await response.json(); // Parse successful JSON response
+            console.log("Login successful, received data:", JSON.stringify(data, null, 2));
+        } catch (parseOrHttpError) {
+             // Catch errors during response.json() or if response was not ok
+            console.error("Login response/parse error:", parseOrHttpError);
+            showError(loginError, parseOrHttpError.message || 'Login failed: Invalid response from server.');
+            hideLoading();
+            return; // Stop execution
+        }
+        
+        // If we reach here, response was ok and data is parsed
+        isAuthenticated = true;
+        currentEmail = email;
+        console.log("Storing tokens:", JSON.stringify(data, null, 2)); // Log before storing
+        await chrome.storage.local.set({ 
+            isAuthenticated: true, 
+            userEmail: email, 
+            idToken: data.idToken, // Store idToken
+            accessToken: data.accessToken // *** Store accessToken ***
+        }); 
+        showMainContainer();
+        showMainContentView(); 
+        // fetchHistory(); 
+
     } catch (error) {
-        showError(loginError, 'Network error occurred');
+        // Catch any unexpected errors not caught above (should be rare)
+        console.error("Unexpected Login error:", error);
+        showError(loginError, 'An unexpected error occurred during login.');
     } finally {
         hideLoading();
     }
@@ -160,6 +238,7 @@ async function register(email, password) {
 async function verifyEmail(code) {
     try {
         showLoading();
+        hideError(verifyError); // Hide verify error before request
         const response = await fetch(`${AUTH_ENDPOINT}/verify`, {
             method: 'POST',
             headers: {
@@ -178,6 +257,11 @@ async function verifyEmail(code) {
         if (response.ok) {
             loginForm.style.display = 'block';
             verifyForm.style.display = 'none';
+            hideError(loginError); // *** Explicitly hide login error ***
+            // Remove previous success message if exists
+            const existingSuccess = loginForm.querySelector('.success-message');
+            if (existingSuccess) existingSuccess.remove();
+            
             const successMessage = document.createElement('div');
             successMessage.className = 'success-message';
             successMessage.style.display = 'block';
@@ -187,7 +271,7 @@ async function verifyEmail(code) {
             showError(verifyError, data.message || 'Verification failed');
         }
     } catch (error) {
-        showError(verifyError, 'Network error occurred');
+        showError(verifyError, 'Network error occurred during verification');
     } finally {
         hideLoading();
     }
@@ -233,12 +317,21 @@ async function summarizePage() {
             currentPageTitle = currentPageTitle || tab.title;
         }
 
+        // *** Retrieve Access Token ***
+        const { accessToken } = await chrome.storage.local.get('accessToken');
+        if (!accessToken) {
+             alert("Authentication error (Access Token missing). Please log out and log back in.");
+             document.getElementById('summaryLoading').style.display = 'none';
+             return; 
+        }
+
         // Call summarize API
         const response = await fetch(SUMMARIZE_ENDPOINT, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${accessToken}` // *** Use Access Token ***
             },
             body: JSON.stringify({
                 action: 'summarize',
@@ -274,12 +367,21 @@ async function sendQuery(query) {
             await getPageContent();
         }
 
+        // *** Retrieve Access Token ***
+        const { accessToken: chatAccessToken } = await chrome.storage.local.get('accessToken'); 
+        if (!chatAccessToken) {
+             alert("Authentication error (Access Token missing). Please log out and log back in.");
+             document.getElementById('chatLoading').style.display = 'none'; 
+             return; 
+        }
+
         // Call chat API
         const response = await fetch(SUMMARIZE_ENDPOINT, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${chatAccessToken}` // *** Use Access Token ***
             },
             body: JSON.stringify({
                 action: 'chat',
@@ -315,6 +417,226 @@ async function sendQuery(query) {
     }
 }
 
+// Rekognition API Call
+async function detectTextImage(imageUrl) {
+    try {
+        rekognitionContainer.style.display = 'block';
+        rekognitionImage.src = imageUrl;
+        rekognitionLoading.style.display = 'block';
+        rekognitionText.value = '';
+        hideError(rekognitionError);
+
+        // Retrieve token for authentication if needed by API Gateway (assuming not needed for now)
+        // const { idToken } = await chrome.storage.local.get('idToken'); 
+
+        const response = await fetch(`${API_ENDPOINT}/rekognition`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+                // Add Authorization header if required by API Gateway/Lambda
+                // 'Authorization': `Bearer ${idToken}` 
+            },
+            body: JSON.stringify({ image_url: imageUrl })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            rekognitionText.value = data.detected_text || 'No text detected.';
+        } else {
+            throw new Error(data.error || 'Failed to detect text');
+        }
+    } catch (error) {
+        console.error('Rekognition Error:', error);
+        showError(rekognitionError, `Error: ${error.message}`);
+        rekognitionText.value = 'Error detecting text.'; // Show error in text area too
+    } finally {
+        rekognitionLoading.style.display = 'none';
+    }
+}
+
+// Transcribe Audio Function
+async function transcribeAudio(audioBlob) {
+    const transcribeLoadingText = "Transcribing audio..."; 
+    const statusElement = document.getElementById('chatLoading'); // Reuse chat loading or create specific one
+    const queryInput = document.getElementById('queryInput');
+
+    try {
+        statusElement.querySelector('.loading-text').textContent = transcribeLoadingText;
+        statusElement.style.display = 'block';
+        micBtn.disabled = true; // Disable mic while transcribing
+        queryInput.disabled = true;
+        queryInput.placeholder = transcribeLoadingText;
+
+        // Convert Blob to base64
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        const base64Audio = await new Promise((resolve, reject) => {
+            reader.onloadend = () => {
+                // Remove the data URL prefix (e.g., "data:audio/webm;base64,")
+                const base64String = reader.result.split(',', 2)[1];
+                resolve(base64String);
+            };
+            reader.onerror = reject;
+        });
+
+        const response = await fetch(`${API_ENDPOINT}/transcribe`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+                // Add Authorization header if needed
+            },
+            body: JSON.stringify({ audio_data: base64Audio })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            queryInput.value = data.transcript || ''; // Populate input field
+            console.log("Transcription successful:", data.transcript);
+        } else {
+            throw new Error(data.error || 'Failed to transcribe audio');
+        }
+    } catch (error) {
+        console.error('Transcription Error:', error);
+        alert(`Transcription Error: ${error.message}`);
+        queryInput.placeholder = "Error transcribing. Try again.";
+    } finally {
+        statusElement.style.display = 'none';
+        micBtn.disabled = false;
+        queryInput.disabled = false;
+        queryInput.placeholder = "Ask a question about this page..."; // Reset placeholder
+    }
+}
+
+// Media Recorder Setup - Modified
+async function setupMediaRecorder() {
+    // 1. Send message to background to trigger iframe injection
+    console.log("Sidepanel: Requesting background script to inject permission iframe...");
+    try {
+        const response = await chrome.runtime.sendMessage({ action: "requestMicPermission" });
+        console.log("Sidepanel: Response from background script:", response);
+        if (!response || !response.success) {
+            throw new Error(response?.error || "Failed to communicate with background script for permissions.");
+        }
+    } catch (err) {
+         console.error('Sidepanel: Error requesting permission injection:', err);
+         alert(`Could not initiate microphone permission request: ${err.message}. Try reloading the page/extension.`);
+         return false; // Indicate failure
+    }
+    
+    // 2. Wait a short moment for the iframe to potentially trigger the prompt
+    await new Promise(resolve => setTimeout(resolve, 500)); // 0.5 second delay
+
+    // 3. Now try to get the user media stream
+    try {
+        console.log("Sidepanel: Attempting to get user media stream after iframe injection request...");
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log("Sidepanel: Media stream acquired successfully.");
+
+        // Check for supported MIME type
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+                         ? 'audio/webm;codecs=opus' 
+                         : (MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg');
+        if (!mimeType) {
+             throw new Error("No suitable audio recording format found.");
+        }
+        console.log(`Using MIME type: ${mimeType}`);
+
+        mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType }); 
+
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+
+        mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: mimeType });
+            audioChunks = []; // Clear chunks for next recording
+            if (audioBlob.size > 100) { 
+                transcribeAudio(audioBlob);
+            } else {
+                console.log("Audio blob too small, not sending.");
+                micBtn.querySelector('svg').style.fill = micInactiveColor;
+                isRecording = false;
+            }
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.onerror = (event) => {
+            console.error("MediaRecorder error:", event.error);
+            alert("Audio recording error occurred.");
+            isRecording = false;
+            micBtn.querySelector('svg').style.fill = micInactiveColor;
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        return true; // Indicate success
+
+    } catch (err) {
+        console.error('Sidepanel: Error accessing microphone stream:', err);
+        // Check for specific errors
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+             alert('Microphone access was denied. Please grant permission in browser settings and reload the extension.');
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError'){
+             alert('No microphone found. Please ensure a microphone is connected and enabled.');
+        } else {
+             alert(`Could not access microphone: ${err.message}. Check console for details.`);
+        }
+        return false; // Indicate failure
+    }
+}
+
+// startRecording - Modified
+async function startRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Audio recording is not supported by your browser.");
+        return;
+    }
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+         console.warn("Already recording.");
+         return;
+    }
+
+    // Ensure permissions are likely granted via iframe method before proceeding
+    const setupSuccess = await setupMediaRecorder();
+
+    if (setupSuccess && mediaRecorder) {
+         if (mediaRecorder.state === "inactive") {
+            audioChunks = [];
+            mediaRecorder.start();
+            isRecording = true;
+            micBtn.querySelector('svg').style.fill = micActiveColor; 
+            console.log("Recording started");
+        } else {
+             console.warn(`MediaRecorder state is not inactive: ${mediaRecorder.state}`);
+        }
+    } else {
+        console.error("MediaRecorder setup failed or recorder not available.");
+        // Error message already shown in setupMediaRecorder
+        // Reset UI just in case
+        isRecording = false;
+        micBtn.querySelector('svg').style.fill = micInactiveColor;
+    }
+}
+
+// stopRecording - (Keep existing implementation)
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        isRecording = false;
+        micBtn.querySelector('svg').style.fill = micInactiveColor; // Change color back
+        console.log("Recording stopped");
+    } else {
+        console.log("Recorder not active or already stopped.");
+         isRecording = false;
+         micBtn.querySelector('svg').style.fill = micInactiveColor;
+    }
+}
+
 // Event Listeners
 loginBtn.addEventListener('click', () => {
     hideError(loginError);
@@ -339,11 +661,16 @@ resendCodeBtn.addEventListener('click', async () => {
 showRegisterLink.addEventListener('click', () => {
     loginForm.style.display = 'none';
     registerForm.style.display = 'block';
+    hideError(loginError); // Hide login error when switching
+    // Clear potential success message from login form
+    const existingSuccess = loginForm.querySelector('.success-message');
+    if (existingSuccess) existingSuccess.remove();
 });
 
 showLoginLink.addEventListener('click', () => {
     registerForm.style.display = 'none';
     loginForm.style.display = 'block';
+    hideError(registerError); // Hide register error when switching
 });
 
 summarizeBtn.addEventListener('click', summarizePage);
@@ -363,7 +690,7 @@ logoutBtn.addEventListener('click', () => {
     currentPageUrl = '';
     chrome.storage.local.remove(['isAuthenticated', 'userEmail']);
     showAuthContainer();
-}); 
+});
 
 kendraModeBtn.addEventListener('click', () => {
     useKendra = true;
@@ -376,3 +703,191 @@ kendraModeBtn.addEventListener('click', () => {
     bedrockModeBtn.classList.add('toggle-active');
     kendraModeBtn.classList.remove('toggle-active');
   });
+
+micBtn.addEventListener('click', () => {
+    if (!isRecording) {
+        startRecording(); // Now calls the modified async version
+    } else {
+        stopRecording();
+    }
+});
+
+historyBtn.addEventListener('click', () => {
+    if (!isAuthenticated) {
+        alert("Please log in to view history.");
+        return;
+    }
+    showHistoryView();
+    fetchHistory();
+});
+
+backToMainBtn.addEventListener('click', () => {
+    showMainContentView();
+});
+
+// Listen for messages (Combined Listener)
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log("Message received in sidepanel:", request);
+    
+    if (request.action === "detectTextImage") {
+        // --- Handle Rekognition Request --- 
+        if (request.imageUrl) {
+            if (isAuthenticated) {
+                 detectTextImage(request.imageUrl);
+                 showMainContentView(); // Ensure main view is visible
+                 rekognitionContainer.scrollIntoView({ behavior: 'smooth' }); // Scroll to results
+            } else {
+                 console.warn("User not authenticated. Rekognition feature requires login.");
+                 showError(rekognitionError, "Please login to use the text detection feature.");
+                 rekognitionContainer.style.display = 'block';
+                 showMainContentView(); // Show main view to display the error in context
+            }
+        } else {
+            console.error("No image URL provided in message.");
+            showError(rekognitionError, "Error: Missing image URL from request.");
+            rekognitionContainer.style.display = 'block';
+            showMainContentView();
+        }
+        // Optional: sendResponse({ received: true });
+        
+    } else if (request.action === "tabNavigated") {
+        // --- Handle Tab Navigation --- 
+        console.log(`Sidepanel: Detected navigation to ${request.url}`);
+        // Update state only if the URL actually changed
+        if (currentPageUrl !== request.url) {
+            currentPageUrl = request.url;
+            currentPageContent = ''; // Clear stale content
+            currentPageTitle = '';   // Clear stale title
+            
+            // Reset UI elements to initial state for the new page
+            summaryContainer.style.display = 'none';
+            summaryContent.innerHTML = '';
+            document.getElementById('chatResponses').innerHTML = '';
+            rekognitionContainer.style.display = 'none';
+            rekognitionText.value = '';
+            rekognitionImage.src = '';
+            queryInput.value = ''; // Clear chat input
+            
+            // Ensure the main content view is visible (not history)
+            showMainContentView();
+            
+            // Optionally, display a message indicating the context change
+            // e.g., update a status bar element not implemented here yet.
+             console.log("Sidepanel context reset for new page.");
+        }
+        // Optional: sendResponse({ received: true });
+    }
+    // ... handle other potential message actions ...
+
+    // Return true ONLY if using sendResponse asynchronously elsewhere in the listener
+    // Since we handle synchronously here, returning true might keep ports open unnecessarily.
+    // Consider returning false or nothing if no async sendResponse is used for these actions.
+    return true; 
+});
+
+// History Functions
+function formatTimestamp(unixTimestamp) {
+    if (!unixTimestamp) return 'Unknown date';
+    const date = new Date(unixTimestamp * 1000);
+    return date.toLocaleString(); // Adjust format as needed
+}
+
+function displayHistory(historyData) {
+    historyContent.innerHTML = ''; // Clear previous content
+
+    if (!historyData || (!historyData.summaries?.length && !historyData.chat_history?.length)) {
+        historyContent.innerHTML = '<p>No history found.</p>';
+        return;
+    }
+
+    // Display Summaries
+    if (historyData.summaries?.length) {
+        const summarySection = document.createElement('div');
+        summarySection.innerHTML = '<h3>Recent Summaries</h3>';
+        historyData.summaries.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'history-item summary-item'; // Add classes for styling
+            div.innerHTML = `
+                <p><strong>Title:</strong> ${item.title || 'N/A'}</p>
+                <p><strong>URL:</strong> <a href="${item.url}" target="_blank">${item.url || 'N/A'}</a></p>
+                <p><strong>Summary:</strong> ${item.summary || 'N/A'}</p>
+                <small><em>${formatTimestamp(item.timestamp)}</em></small>
+            `;
+            summarySection.appendChild(div);
+        });
+        historyContent.appendChild(summarySection);
+    }
+
+    // Display Chat History
+    if (historyData.chat_history?.length) {
+        const chatSection = document.createElement('div');
+        chatSection.innerHTML = '<h3>Recent Chats</h3>';
+        historyData.chat_history.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'history-item chat-item'; // Add classes for styling
+            div.innerHTML = `
+                <p><strong>Page:</strong> ${item.title || item.url || 'N/A'}</p>
+                <p><strong>Query:</strong> ${item.query || 'N/A'}</p>
+                <p><strong>Response:</strong> ${item.response || 'N/A'}</p> <!-- Adjust if response is object -->
+                <small><em>${formatTimestamp(item.timestamp)}</em></small>
+            `;
+             chatSection.appendChild(div);
+        });
+        historyContent.appendChild(chatSection);
+    }
+     // Add basic styling for history items (can be moved to <style> block)
+    const style = document.createElement('style');
+    style.textContent = `
+        .history-item { border: 1px solid #eee; padding: 10px; border-radius: 5px; background-color: #fff; }
+        .history-item p { margin-bottom: 5px; font-size: 13px; }
+        .history-item small { color: #777; font-size: 11px; }
+        .history-item a { color: #007bff; text-decoration: none; }
+        .history-item a:hover { text-decoration: underline; }
+        .history-item h3 { font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+    `;
+    historyContent.appendChild(style);
+}
+
+async function fetchHistory() {
+    console.log("Fetching user history...");
+    historyLoading.style.display = 'block';
+    historyContent.innerHTML = ''; // Clear previous
+    hideError(historyError);
+
+    try {
+        // *** Retrieve Access Token ***
+        const { accessToken: historyAccessToken } = await chrome.storage.local.get('accessToken');
+        if (!historyAccessToken) {
+            throw new Error("Not logged in or Access Token missing.");
+        }
+
+        const response = await fetch(`${API_ENDPOINT}/history`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${historyAccessToken}`, // *** Use Access Token ***
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+             // Handle specific errors like 401 Unauthorized
+             if (response.status === 401) {
+                  throw new Error("Authentication failed. Please log in again.");
+             }
+            const errorData = await response.json().catch(() => ({})); // Try to get error body
+            throw new Error(errorData.error || `Failed to fetch history: ${response.statusText}`);
+        }
+
+        const historyData = await response.json();
+        console.log("History data received:", historyData);
+        displayHistory(historyData);
+
+    } catch (error) {
+        console.error("Fetch History Error:", error);
+        showError(historyError, `Error loading history: ${error.message}`);
+         // If auth error, maybe force logout?
+         // if (error.message.includes("Authentication failed")) { logoutUser(); } 
+    } finally {
+        historyLoading.style.display = 'none';
+    }
+}

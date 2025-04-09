@@ -3,6 +3,7 @@ import boto3
 import os
 import time
 import re
+import decimal
 from clean_text import clean_text, extract_main_content
 from logger import logger
 from kendra_indexing import generate_document_id, split_into_chunks, index_in_kendra, query_kendra
@@ -20,6 +21,21 @@ bedrock_runtime = boto3.client(
 BEDROCK_MODEL = 'anthropic.claude-3-sonnet-20240229-v1:0'
 MAX_TOKENS = 500
 TEMPERATURE = 0.7
+
+USER_TABLE_NAME = os.environ.get('USER_TABLE_NAME', 'brevity-cloud-user-data')
+user_table = dynamodb.Table(USER_TABLE_NAME)
+MAX_HISTORY_ITEMS = 5 # Max number of summaries/chats to return
+
+# Helper class to convert DynamoDB Decimal to JSON serializable type (int/float)
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, decimal.Decimal):
+            # Convert Decimal to int if it's an integer, else float
+            if o % 1 == 0:
+                return int(o)
+            else:
+                return float(o)
+        return super(DecimalEncoder, self).default(o)
 
 def verify_token(token):
     """Verify JWT token with Cognito."""
@@ -262,61 +278,116 @@ Please provide a clear and concise answer based solely on the context provided."
         logger.error(f"Chat error: {str(e)}", exc_info=True)
         raise
 
+def get_user_history(user_id):
+    """Retrieve user summaries and chat history from DynamoDB."""
+    logger.info(f"Fetching history for user_id: {user_id}")
+    try:
+        response = user_table.get_item(
+            Key={'user_id': user_id},
+            ProjectionExpression='summaries, chat_history' # Only get necessary fields
+        )
+        
+        item = response.get('Item', {})
+        
+        # Get summaries, sort by timestamp descending, take latest N
+        summaries = sorted(
+            item.get('summaries', []),
+            key=lambda x: x.get('timestamp', 0), 
+            reverse=True
+        )[:MAX_HISTORY_ITEMS]
+        
+        # Get chat history, sort by timestamp descending, take latest N
+        chat_history = sorted(
+            item.get('chat_history', []),
+            key=lambda x: x.get('timestamp', 0),
+            reverse=True
+        )[:MAX_HISTORY_ITEMS]
+        
+        logger.info(f"Found {len(summaries)} summaries and {len(chat_history)} chat items.")
+        
+        # *** No need to convert here if using the custom encoder later ***
+        # Convert timestamps (optional here, can be handled by encoder)
+        # for summary in summaries:
+        #     if 'timestamp' in summary and isinstance(summary['timestamp'], decimal.Decimal):
+        #         summary['timestamp'] = int(summary['timestamp'])
+        # for chat in chat_history:
+        #      if 'timestamp' in chat and isinstance(chat['timestamp'], decimal.Decimal):
+        #          chat['timestamp'] = int(chat['timestamp'])
+            
+        return {
+            'summaries': summaries,
+            'chat_history': chat_history
+        }
+        
+    except Exception as e:
+        logger.error(f"DynamoDB get_item error for user {user_id}: {str(e)}", exc_info=True)
+        # Return empty history on error, or re-raise depending on desired behavior
+        return {'summaries': [], 'chat_history': []} 
+
 def lambda_handler(event, context):
     """Main Lambda handler"""
     logger.info(f"Event received: {json.dumps(event)}")
     
-    # Set CORS headers
     headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'OPTIONS,POST'
+        'Access-Control-Allow-Methods': 'OPTIONS,POST,GET' # Add GET
     }
     
-    # Handle OPTIONS request
-    if event.get('requestContext', {}).get('http', {}).get('method') == 'OPTIONS':
-        return {
-            'statusCode': 200,
-            'headers': headers,
-            'body': ''
-        }
+    http_method = event.get('requestContext', {}).get('http', {}).get('method')
+    path = event.get('requestContext', {}).get('http', {}).get('path')
+
+    if http_method == 'OPTIONS':
+        return {'statusCode': 200, 'headers': headers, 'body': ''}
 
     try:
-        # Parse request
-        body = json.loads(event.get('body', '{}'))
-        action = body.get('action', 'summarize')  # Default to summarize
+        auth_header = event.get('headers', {}).get('authorization') # Use lowercase 'authorization'
+        if not auth_header:
+             raise ValueError("Missing Authorization header")
+             
+        user_data = verify_token(auth_header)
+        if not user_data or not user_data.get('user_id'):
+            raise ValueError("Invalid or expired token")
         
-        # Verify authentication
-        auth_header = event.get('headers', {}).get('Authorization')
-        user_data = verify_token(auth_header) if auth_header else None
+        user_id = user_data['user_id']
         
-        # Get Kendra index ID
-        kendra_index_id = os.environ.get('KENDRA_INDEX_ID')
-        use_kendra = body.get('use_kendra', True) 
-        
-        if action == 'summarize':
-            # Handle summarization request
-            url = body.get('url')
-            title = body.get('title', '')
-            content = body.get('text', '')
-            
-            if not content:
-                raise ValueError("No content provided for summarization")
+        # --- Handle GET /history --- 
+        if http_method == 'GET' and path.endswith('/history'):
+            logger.info(f"Handling GET /history for user: {user_id}")
+            history_data = get_user_history(user_id)
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps(history_data, cls=DecimalEncoder)
+            }
+
+        # --- Handle POST /summarize (and /chat) --- 
+        elif http_method == 'POST' and path.endswith('/summarize'):
+            body = json.loads(event.get('body', '{}'))
+            action = body.get('action', 'summarize')
+            kendra_index_id = os.environ.get('KENDRA_INDEX_ID')
+            use_kendra = body.get('use_kendra', True) 
+
+            if action == 'summarize':
+                # Handle summarization request
+                url = body.get('url')
+                title = body.get('title', '')
+                content = body.get('text', '')
                 
-            # Clean the text
-            cleaned_text = clean_text(content)
-            logger.info(f"Cleaned text length: {len(cleaned_text)}")
-            
-            # Get summary
-            summary, used_kendra = handle_summarize(cleaned_text, title, url, kendra_index_id, use_kendra)
-            
-            # Save to DynamoDB if authenticated
-            if user_data:
+                if not content:
+                    raise ValueError("No content provided for summarization")
+                    
+                # Clean the text
+                cleaned_text = clean_text(content)
+                logger.info(f"Cleaned text length: {len(cleaned_text)}")
+                
+                # Get summary
+                summary, used_kendra = handle_summarize(cleaned_text, title, url, kendra_index_id, use_kendra)
+                
+                # Save summary to DynamoDB
                 try:
-                    table_name = os.environ.get('USER_TABLE_NAME', 'brevity-cloud-user-data')
-                    user_table = dynamodb.Table(table_name)
                     user_table.update_item(
-                        Key={'user_id': user_data['user_id']},
+                        Key={'user_id': user_id},
                         UpdateExpression='SET summaries = list_append(if_not_exists(summaries, :empty_list), :new_summary)',
                         ExpressionAttributeValues={
                             ':empty_list': [],
@@ -328,67 +399,75 @@ def lambda_handler(event, context):
                             }]
                         }
                     )
+                    logger.info(f"Summary saved for user {user_id}")
                 except Exception as e:
-                    logger.error(f"DynamoDB error: {str(e)}")
-            
-            response_body = {
-                'summary': summary,
-                'used_kendra': used_kendra
-            }
-        elif action == 'chat':
-            # Handle chat request
-            url = body.get('url')
-            query = body.get('query', '')
-            context = body.get('context', '')
-            
+                    logger.error(f"DynamoDB summary save error: {str(e)}")
 
-            if not query or not context:
-                raise ValueError("Query and context are required for chat")
-            
-            # Get chat response
-            response = handle_chat(query, context, url, kendra_index_id, use_kendra)
-            
-            # Save to DynamoDB if authenticated
-            if user_data:
+                response_body = {'summary': summary, 'used_kendra': used_kendra}
+                
+            elif action == 'chat':
+                # Handle chat request
+                url = body.get('url')
+                query = body.get('query', '')
+                context = body.get('context', '')
+                
+
+                if not query or not context:
+                    raise ValueError("Query and context are required for chat")
+                
+                # Get chat response
+                chat_response, used_kendra = handle_chat(query, context, url, kendra_index_id, use_kendra)
+                
+                # Save chat to DynamoDB
                 try:
-                    table_name = os.environ.get('USER_TABLE_NAME', 'brevity-cloud-user-data')
-                    user_table = dynamodb.Table(table_name)
                     user_table.update_item(
-                        Key={'user_id': user_data['user_id']},
+                        Key={'user_id': user_id},
                         UpdateExpression='SET chat_history = list_append(if_not_exists(chat_history, :empty_list), :new_chat)',
                         ExpressionAttributeValues={
                             ':empty_list': [],
                             ':new_chat': [{
                                 'timestamp': int(time.time()),
                                 'query': query,
-                                'response': response,
-                                'url': body.get('url', ''),
+                                'response': chat_response, # Store the actual response
+                                'url': url or '',
                                 'title': body.get('title', '')
                             }]
                         }
                     )
+                    logger.info(f"Chat saved for user {user_id}")
                 except Exception as e:
-                    logger.error(f"DynamoDB error: {str(e)}")
-            
-            response_body = {
-                'response': response
+                     logger.error(f"DynamoDB chat save error: {str(e)}")
+                     
+                response_body = {'response': chat_response, 'used_kendra': used_kendra}
+            else:
+                raise ValueError(f"Invalid action: {action}")
+
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps(response_body)
             }
         else:
-            raise ValueError(f"Invalid action: {action}")
+             # Handle other paths/methods if necessary
+             logger.warning(f"Unhandled request: {http_method} {path}")
+             return {
+                 'statusCode': 404,
+                 'headers': headers,
+                 'body': json.dumps({'error': 'Not Found'})
+             }
 
+    except ValueError as e: # Catch auth/input validation errors specifically
+        logger.error(f"Authorization or input error: {str(e)}", exc_info=True)
+        status_code = 400 if "Missing" in str(e) else 401 # 400 for missing, 401 for invalid
         return {
-            'statusCode': 200,
+            'statusCode': status_code,
             'headers': headers,
-            'body': json.dumps(response_body)
-
+            'body': json.dumps({'error': str(e)})
         }
-
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}", exc_info=True)
         return {
             'statusCode': 500,
             'headers': headers,
-            'body': json.dumps({
-                'error': str(e)
-            })
+            'body': json.dumps({'error': f'Internal server error: {str(e)}'})
         }

@@ -48,3 +48,24 @@ module "api_gateway" {
   summarize_lambda_name     = module.lambda.summarize_lambda_name
   auth_lambda_name          = module.lambda.auth_lambda_name
 }
+
+module "rekognition" {
+  source                      = "./modules/rekognition"
+  project_name                = var.project_name
+  api_gateway_id              = module.api_gateway.api_gateway_id
+  api_gateway_execution_arn   = module.api_gateway.api_gateway_execution_arn
+  lambda_role_name            = module.lambda.lambda_role_name
+  rekognition_lambda_zip_path = "${path.module}/lambda_function_rekognition.zip"
+}
+
+module "transcribe" {
+  source                      = "./modules/transcribe"
+  project_name                = var.project_name
+  api_gateway_id              = module.api_gateway.api_gateway_id
+  api_gateway_execution_arn   = module.api_gateway.api_gateway_execution_arn
+  lambda_role_name            = module.lambda.lambda_role_name
+  s3_bucket_name              = module.s3.s3_bucket_id # Use the main content bucket for temp audio
+  transcribe_lambda_zip_path  = "${path.module}/lambda_function_transcribe.zip"
+  # transcribe_policy_arn is defaulted
+  # s3_policy_arn - Assuming shared role policy is sufficient for PutObject
+}

@@ -3,7 +3,7 @@ $tempDir = "lambda_package"
 New-Item -ItemType Directory -Path $tempDir -Force
 
 # Copy source files
-Copy-Item -Path "summarize.py", "clean_text.py", "logger.py", "kendra_indexing.py" -Destination $tempDir
+Copy-Item -Path "summarize.py", "clean_text.py", "logger.py", "kendra_indexing.py", "s3_helper.py" -Destination $tempDir
 
 # Install dependencies
 pip install -r requirements.txt -t $tempDir

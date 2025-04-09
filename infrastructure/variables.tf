@@ -7,5 +7,5 @@ variable "aws_region" {
 variable "project_name" {
   description = "Name of the project used as prefix for resources"
   type        = string
-  default     = "brevity-cloud"
+  default     = "dev-brevity-cloud"
 }

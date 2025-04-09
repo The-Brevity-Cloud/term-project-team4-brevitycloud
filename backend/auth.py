@@ -132,7 +132,8 @@ def handle_login(body):
         return {
             'statusCode': 200,
             'body': json.dumps({
-                'token': response['AuthenticationResult']['IdToken'],
+                'idToken': response['AuthenticationResult']['IdToken'],
+                'accessToken': response['AuthenticationResult']['AccessToken'],
                 'refreshToken': response['AuthenticationResult']['RefreshToken']
             })
         }
