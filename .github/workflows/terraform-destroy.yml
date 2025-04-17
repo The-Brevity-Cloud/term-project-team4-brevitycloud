@@ -38,12 +38,12 @@ jobs:
           env.USER == 'sandeep' && secrets.AWS_SECRET_KEY_MIRA ||
           env.USER == 'nithikesh' && secrets.AWS_SECRET_KEY_ANIL
         }}
-        aws-region: us-east-2
+        aws-region: us-east-1
 
     - name: Terraform Init and Destroy
       working-directory: infrastructure
       run: |
-        terraform init -backend-config="bucket=tf-state-${{ env.USER }}" \
+        terraform init -backend-config="bucket=temp-tf-state-${{ env.USER }}" \
                         -backend-config="key=${{ env.USER }}/terraform.tfstate" \
                         -backend-config="region=us-east-1" \
                         -backend-config="dynamodb_table=terraform-locks-${{ env.USER }}"
