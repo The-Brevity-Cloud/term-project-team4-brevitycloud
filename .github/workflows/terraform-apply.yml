@@ -93,7 +93,7 @@ jobs:
     
     - name: Export Terraform outputs
       id: tf_outputs
-      working_directory: infrastructure
+      working-directory: infrastructure
       run: |
         echo "API_ENDPOINT=$(terraform output -raw api_endpoint)" >> $GITHUB_ENV
         echo "COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)" >> $GITHUB_ENV
