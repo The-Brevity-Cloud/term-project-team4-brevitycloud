@@ -17,27 +17,48 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
-    
+
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v2
 
-    - name: Configure AWS credentials
+    - name: Configure AWS credentials (hemanth)
+      if: env.USER == 'hemanth'
       uses: aws-actions/configure-aws-credentials@v2
       with:
-        aws-access-key-id: ${{ 
-          env.USER == 'hemanth' && secrets.AWS_ACCESS_KEY_SANJEEV ||
-          env.USER == 'swetha' && secrets.AWS_ACCESS_KEY_SWETHA ||
-          env.USER == 'sanjeev' && secrets.AWS_ACCESS_KEY_HARSH ||
-          env.USER == 'sandeep' && secrets.AWS_ACCESS_KEY_MIRA ||
-          env.USER == 'nithikesh' && secrets.AWS_ACCESS_KEY_ANIL
-        }}
-        aws-secret-access-key: ${{ 
-          env.USER == 'hemanth' && secrets.AWS_SECRET_KEY_SANJEEV ||
-          env.USER == 'swetha' && secrets.AWS_SECRET_KEY_SWETHA ||
-          env.USER == 'sanjeev' && secrets.AWS_SECRET_KEY_HARSH ||
-          env.USER == 'sandeep' && secrets.AWS_SECRET_KEY_MIRA ||
-          env.USER == 'nithikesh' && secrets.AWS_SECRET_KEY_ANIL
-        }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANJEEV }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANJEEV }}
+        aws-region: us-east-1
+
+    - name: Configure AWS credentials (swetha)
+      if: env.USER == 'swetha'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SWETHA }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SWETHA }}
+        aws-region: us-east-1
+
+    - name: Configure AWS credentials (sanjeev)
+      if: env.USER == 'sanjeev'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_HARSH }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_HARSH }}
+        aws-region: us-east-1
+
+    - name: Configure AWS credentials (sandeep)
+      if: env.USER == 'sandeep'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_MIRA }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_MIRA }}
+        aws-region: us-east-1
+
+    - name: Configure AWS credentials (nithikesh)
+      if: env.USER == 'nithikesh'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ANIL }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_ANIL }}
         aws-region: us-east-1
 
     - name: Terraform Init and Destroy
