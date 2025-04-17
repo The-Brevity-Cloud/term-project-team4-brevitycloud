@@ -4,7 +4,7 @@ provider "aws" {
 
 terraform {
   backend "s3" {
-    bucket         = "temp-tf-state-swetha"
+    bucket         = "tf-state-swetha"
     key            = "ci-cd/state.tfstate"
     region         = "us-east-1"
     dynamodb_table = "terraform-locks-swetha"

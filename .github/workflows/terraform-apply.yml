@@ -64,7 +64,7 @@ jobs:
     - name: Terraform Init and Apply
       working-directory: infrastructure
       run: |
-        terraform init -backend-config="bucket=temp-tf-state-${{ env.USER }}" \
+        terraform init -backend-config="bucket=tf-state-${{ env.USER }}" \
                         -backend-config="key=${{ env.USER }}/terraform.tfstate" \
                         -backend-config="region=us-east-1" \
                         -backend-config="dynamodb_table=terraform-locks-${{ env.USER }}"
