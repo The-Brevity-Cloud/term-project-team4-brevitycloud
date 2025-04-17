@@ -67,19 +67,19 @@ jobs:
         sudo apt-get install -y zip
         pip install -r backend/requirements.txt
     
-    - name: Package Lambda: summarize/history
+    - name: Package Lambda - summarize/history
       working-directory: backend
       run: bash package.sh
 
-    - name: Package Lambda: auth
+    - name: Package Lambda - auth
       working-directory: backend
       run: bash package_auth.sh
 
-    - name: Package Lambda: rekognition
+    - name: Package Lambda - rekognition
       working-directory: backend
       run: bash package_rekognition.sh
 
-    - name: Package Lambda: transcribe
+    - name: Package Lambda - transcribe
       working-directory: backend
       run: bash package_transcribe.sh
 
