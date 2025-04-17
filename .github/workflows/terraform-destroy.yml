@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       user:
-        description: "Team member identifier (e.g., sanjeev, swetha)"
+        description: "Team member identifier (Choose one: hemanth, swetha, sanjeev, sandeep, nithikesh)"
         required: true
 
 jobs:
