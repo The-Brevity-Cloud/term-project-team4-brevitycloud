@@ -1,0 +1,35 @@
+name: Terraform Apply (Per User)
+
+on:
+  workflow_dispatch:
+    inputs:
+      user:
+        description: "swetha"
+        required: true
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+
+    env:
+      USER: ${{ github.event.inputs.user }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets[format('AWS_ACCESS_KEY_{0}', env.USER | upper)] }}
+        aws-secret-access-key: ${{ secrets[format('AWS_SECRET_KEY_{0}', env.USER | upper)] }}
+        aws-region: us-east-1
+
+    - name: Terraform Init and Apply
+      working-directory: infrastructure
+      run: |
+        terraform init -backend-config="bucket=tf-state-${{ env.USER }}" \
+                        -backend-config="key=${{ env.USER }}/terraform.tfstate" \
+                        -backend-config="region=us-east-1" \
+                        -backend-config="dynamodb_table=terraform-locks-${{ env.USER }}"
+        terraform apply -auto-approve

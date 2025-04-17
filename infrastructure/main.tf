@@ -2,6 +2,15 @@ provider "aws" {
   region = var.aws_region
 }
 
+terraform {
+  backend "s3" {
+    bucket         = "tf-state-swetha"
+    key            = "ci-cd/state.tfstate"
+    region         = "us-east-2"
+    dynamodb_table = "terraform-locks-sanjeev"
+  }
+}
+
 module "kendra" {
   source       = "./modules/kendra"
   project_name = var.project_name
