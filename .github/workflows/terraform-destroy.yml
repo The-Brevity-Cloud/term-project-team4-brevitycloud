@@ -38,7 +38,7 @@ jobs:
           env.USER == 'sandeep' && secrets.AWS_SECRET_KEY_MIRA ||
           env.USER == 'nithikesh' && secrets.AWS_SECRET_KEY_ANIL
         }}
-        aws-region: us-east-1
+        aws-region: us-east-2
 
     - name: Terraform Init and Destroy
       working-directory: infrastructure
