@@ -17,6 +17,9 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
+    
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v2
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
