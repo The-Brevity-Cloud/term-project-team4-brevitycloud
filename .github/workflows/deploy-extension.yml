@@ -69,7 +69,7 @@ jobs:
         cd ..
 
     - name: Upload to Chrome Web Store
-      uses: trmcnvn/chrome-webstore-upload-action@main
+      uses: mnao305/chrome-extension-upload@v3
       with:
         client_id: ${{ secrets.CHROME_CLIENT_ID }}
         client_secret: ${{ secrets.CHROME_CLIENT_SECRET }}
