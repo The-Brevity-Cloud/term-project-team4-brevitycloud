@@ -4,7 +4,8 @@
 
 # Variables
 FUNCTION_NAME="rekognition"
-ZIP_FILE="../infrastructure/lambda_function_${FUNCTION_NAME}.zip"
+ZIP_NAME="lambda_function_${FUNCTION_NAME}.zip"
+ZIP_FILE="../${ZIP_NAME}"
 REQUIREMENTS_FILE="requirements.txt"
 
 # Clean up previous build artifacts
@@ -21,12 +22,18 @@ pip install -r $REQUIREMENTS_FILE --target ./package
 cp ${FUNCTION_NAME}.py ./package/
 cp logger.py ./package/
 
-# Create zip file
+# Create zip file in current directory
 cd package
-zip -r9 $ZIP_FILE .
+zip -r ../$ZIP_NAME .
 cd ..
+
+# Ensure target directory exists
+mkdir -p ../infrastructure
+
+# Move the zip file to infrastructure folder
+mv $ZIP_NAME ../infrastructure/
 
 # Clean up packaging directory
 rm -rf package
 
-echo "Rekognition Lambda function packaged successfully: ${ZIP_FILE}" 
+echo "Rekognition Lambda function packaged successfully: ../infrastructure/${ZIP_NAME}"

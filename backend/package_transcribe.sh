@@ -4,31 +4,37 @@
 
 # Variables
 FUNCTION_NAME="transcribe"
-ZIP_FILE="../infrastructure/lambda_function_${FUNCTION_NAME}.zip"
-REQUIREMENTS_FILE="requirements.txt" # Using main requirements for boto3
+PACKAGE_DIR="package_${FUNCTION_NAME}"
+ZIP_NAME="lambda_function_${FUNCTION_NAME}.zip"
+ZIP_FILE="../${ZIP_NAME}"
+REQUIREMENTS_FILE="requirements.txt" # Shared requirements, mainly boto3
 
 # Clean up previous build artifacts
-rm -rf package_${FUNCTION_NAME}
-rm -f $ZIP_FILE
+rm -rf $PACKAGE_DIR
+rm -f $ZIP_NAME
 
 # Create packaging directory
-mkdir package_${FUNCTION_NAME}
+mkdir $PACKAGE_DIR
 
-# Install dependencies (only boto3 needed, likely already cached)
-# If specific dependencies were added, install them:
-# pip install -r requirements_transcribe.txt --target ./package_${FUNCTION_NAME}
-# For now, copy necessary shared files
-cp logger.py ./package_${FUNCTION_NAME}/
+# Copy shared files and function code
+cp logger.py ${PACKAGE_DIR}/
+cp ${FUNCTION_NAME}.py ${PACKAGE_DIR}/
 
-# Copy function code
-cp ${FUNCTION_NAME}.py ./package_${FUNCTION_NAME}/
+# (Optional) Install dependencies if needed
+# pip install -r requirements_transcribe.txt --target ./$PACKAGE_DIR
 
-# Create zip file
-cd package_${FUNCTION_NAME}
-zip -r9 $ZIP_FILE .
+# Create zip file in current directory
+cd $PACKAGE_DIR
+zip -r ../$ZIP_NAME .
 cd ..
 
-# Clean up packaging directory
-rm -rf package_${FUNCTION_NAME}
+# Ensure target directory exists
+mkdir -p ../infrastructure
 
-echo "Transcribe Lambda function packaged successfully: ${ZIP_FILE}" 
+# Move the zip file to infrastructure folder
+mv $ZIP_NAME ../infrastructure/
+
+# Clean up packaging directory
+rm -rf $PACKAGE_DIR
+
+echo "Transcribe Lambda function packaged successfully: ../infrastructure/${ZIP_NAME}"
