@@ -60,6 +60,28 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_NITHIKESH }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_NITHIKESH }}
         aws-region: us-east-1
+      
+    - name: Install zip and pip dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zip
+        pip install -r backend/requirements.txt
+    
+    - name: Package Lambda: summarize/history
+      working-directory: backend
+      run: bash package.sh
+
+    - name: Package Lambda: auth
+      working-directory: backend
+      run: bash package_auth.sh
+
+    - name: Package Lambda: rekognition
+      working-directory: backend
+      run: bash package_rekognition.sh
+
+    - name: Package Lambda: transcribe
+      working-directory: backend
+      run: bash package_transcribe.sh
 
     - name: Terraform Init and Apply
       working-directory: infrastructure
