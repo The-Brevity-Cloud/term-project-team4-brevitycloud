@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       user:
-        description: "swetha"
+        description: "Team member identifier (Choose one: hemanth, swetha, sanjeev, sandeep, nithikesh)"
         required: true
 
 jobs:
@@ -21,8 +21,20 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
-        aws-access-key-id: ${{ secrets[format('AWS_ACCESS_KEY_{0}', env.USER | upper)] }}
-        aws-secret-access-key: ${{ secrets[format('AWS_SECRET_KEY_{0}', env.USER | upper)] }}
+        aws-access-key-id: ${{ 
+            env.USER == 'hemanth' && secrets.AWS_ACCESS_KEY_SANJEEV ||
+            env.USER == 'swetha' && secrets.AWS_ACCESS_KEY_SWETHA ||
+            env.USER == 'sanjeev' && secrets.AWS_ACCESS_KEY_HARSH ||
+            env.USER == 'sandeep' && secrets.AWS_ACCESS_KEY_MIRA ||
+            env.USER == 'nithikesh' && secrets.AWS_ACCESS_KEY_ANIL
+          }}
+          aws-secret-access-key: ${{ 
+            env.USER == 'hemanth' && secrets.AWS_SECRET_KEY_SANJEEV ||
+            env.USER == 'swetha' && secrets.AWS_SECRET_KEY_SWETHA ||
+            env.USER == 'sanjeev' && secrets.AWS_SECRET_KEY_HARSH ||
+            env.USER == 'sandeep' && secrets.AWS_SECRET_KEY_MIRA ||
+            env.USER == 'nithikesh' && secrets.AWS_SECRET_KEY_ANIL
+          }}
         aws-region: us-east-1
 
     - name: Terraform Init and Apply
