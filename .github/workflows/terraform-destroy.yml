@@ -67,5 +67,4 @@ jobs:
         terraform init -backend-config="bucket=tf-state-${{ env.USER }}" \
                         -backend-config="key=${{ env.USER }}/terraform.tfstate" \
                         -backend-config="region=us-east-1" \
-                        -backend-config="dynamodb_table=terraform-locks-${{ env.USER }}"
         terraform destroy -auto-approve
