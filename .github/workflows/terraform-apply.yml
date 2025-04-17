@@ -90,3 +90,24 @@ jobs:
                         -backend-config="key=${{ env.USER }}/terraform.tfstate" \
                         -backend-config="region=us-east-1"
         terraform apply -auto-approve
+    
+    - name: Export Terraform outputs
+      id: tf_outputs
+      working_directory: infrastructure
+      run: |
+        echo "API_ENDPOINT=$(terraform output -raw api_endpoint)" >> $GITHUB_ENV
+        echo "COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)" >> $GITHUB_ENV
+    
+    - name: Save outputs to artifacts
+      run: |
+        echo "$API_ENDPOINT" > api_endpoint.txt
+        echo "$COGNITO_CLIENT_ID" > cognito_client_id.txt
+      shell: bash
+    
+    - name: Upload extension config
+      uses: actions/upload-artifact@v3
+      with:
+        name: extension-config
+        path: |
+          api_endpoint.txt
+          cognito_client_id.text
