@@ -1,4 +1,4 @@
-name: Terraform Apply (Per User)
+name: Terraform Apply
 
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
             env.USER == 'sandeep' && secrets.AWS_ACCESS_KEY_MIRA ||
             env.USER == 'nithikesh' && secrets.AWS_ACCESS_KEY_ANIL
           }}
-          aws-secret-access-key: ${{ 
+        aws-secret-access-key: ${{ 
             env.USER == 'hemanth' && secrets.AWS_SECRET_KEY_SANJEEV ||
             env.USER == 'swetha' && secrets.AWS_SECRET_KEY_SWETHA ||
             env.USER == 'sanjeev' && secrets.AWS_SECRET_KEY_HARSH ||
