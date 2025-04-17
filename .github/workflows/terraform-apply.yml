@@ -105,7 +105,7 @@ jobs:
       shell: bash
     
     - name: Upload extension config
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: extension-config
         path: |
