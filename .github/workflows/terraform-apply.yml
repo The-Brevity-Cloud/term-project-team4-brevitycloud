@@ -60,13 +60,13 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_NITHIKESH }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_NITHIKESH }}
         aws-region: us-east-1
-      
+
     - name: Install zip and pip dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y zip
         pip install -r backend/requirements.txt
-    
+
     - name: Package Lambda - summarize/history
       working-directory: backend
       run: bash package.sh
@@ -90,24 +90,23 @@ jobs:
                         -backend-config="key=${{ env.USER }}/terraform.tfstate" \
                         -backend-config="region=us-east-1"
         terraform apply -auto-approve
-    
+
     - name: Export Terraform outputs
-      id: tf_outputs
       working-directory: infrastructure
       run: |
-        echo "API_ENDPOINT=$(terraform output -raw api_endpoint)" >> $GITHUB_ENV
-        echo "COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)" >> $GITHUB_ENV
-    
-    - name: Save outputs to artifacts
-      run: |
+        API_ENDPOINT=$(terraform output -raw api_endpoint)
+        COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
+
         echo "$API_ENDPOINT" > api_endpoint.txt
         echo "$COGNITO_CLIENT_ID" > cognito_client_id.txt
-      shell: bash
-    
+
+        printf "API_ENDPOINT=%s\n" "$API_ENDPOINT" >> $GITHUB_ENV
+        printf "COGNITO_CLIENT_ID=%s\n" "$COGNITO_CLIENT_ID" >> $GITHUB_ENV
+
     - name: Upload extension config
       uses: actions/upload-artifact@v4
       with:
         name: extension-config
         path: |
           api_endpoint.txt
-          cognito_client_id.text
+          cognito_client_id.txt
