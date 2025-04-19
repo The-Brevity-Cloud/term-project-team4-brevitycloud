@@ -1,3 +1,6 @@
+---
+# File: .github/workflows/terraform-apply.yml
+
 name: Terraform Apply
 
 on:
@@ -94,14 +97,16 @@ jobs:
     - name: Export Terraform outputs
       working-directory: infrastructure
       run: |
-        API_ENDPOINT=$(terraform output -raw api_endpoint)
-        COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
+        API_ENDPOINT=$(terraform output -raw api_endpoint | tr -d '"')
+        COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id | tr -d '"')
 
         echo "$API_ENDPOINT" > api_endpoint.txt
         echo "$COGNITO_CLIENT_ID" > cognito_client_id.txt
 
-        printf "API_ENDPOINT=%s\n" "$API_ENDPOINT" >> $GITHUB_ENV
-        printf "COGNITO_CLIENT_ID=%s\n" "$COGNITO_CLIENT_ID" >> $GITHUB_ENV
+        {
+          echo "API_ENDPOINT=$API_ENDPOINT"
+          echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID"
+        } >> $GITHUB_ENV
 
     - name: Upload extension config
       uses: actions/upload-artifact@v4
