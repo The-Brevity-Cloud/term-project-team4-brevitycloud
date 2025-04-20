@@ -104,14 +104,13 @@ jobs:
         echo "Clean API_ENDPOINT: $API_ENDPOINT"
         echo "Clean COGNITO_CLIENT_ID: $COGNITO_CLIENT_ID"
 
-        echo "$API_ENDPOINT" > api_endpoint.txt
-        echo "$COGNITO_CLIENT_ID" > cognito_client_id.txt
+        echo "$API_ENDPOINT" > ../api_endpoint.txt
+        echo "$COGNITO_CLIENT_ID" > ../cognito_client_id.txt
 
         echo "API_ENDPOINT=$API_ENDPOINT" >> "$GITHUB_ENV"
         echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> "$GITHUB_ENV"
 
     - name: Upload extension config
-      working-directory: infrastructure
       uses: actions/upload-artifact@v4
       with:
         name: extension-config
