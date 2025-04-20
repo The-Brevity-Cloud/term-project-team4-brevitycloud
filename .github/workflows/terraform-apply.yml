@@ -89,7 +89,7 @@ jobs:
     - name: Terraform Init and Apply
       working-directory: infrastructure
       run: |
-        terraform init -backend-config="bucket=tf-state-${{ env.USER }}" \
+        terraform init -backend-config="bucket=tf-state-${{ env.USER }}-brevity" \
                         -backend-config="key=${{ env.USER }}/terraform.tfstate" \
                         -backend-config="region=us-east-1"
         terraform apply -auto-approve
