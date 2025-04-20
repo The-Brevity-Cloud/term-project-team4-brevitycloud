@@ -111,6 +111,7 @@ jobs:
         echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> "$GITHUB_ENV"
 
     - name: Upload extension config
+      working-directory: infrastructure
       uses: actions/upload-artifact@v4
       with:
         name: extension-config
