@@ -97,16 +97,14 @@ jobs:
     - name: Export Terraform outputs
       working-directory: infrastructure
       run: |
-        API_ENDPOINT=$(terraform output -raw api_endpoint | tr -d '"')
-        COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id | tr -d '"')
+        API_ENDPOINT=$(terraform output -raw api_endpoint | tr -d '\n\r"')
+        COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id | tr -d '\n\r"')
 
         echo "$API_ENDPOINT" > api_endpoint.txt
         echo "$COGNITO_CLIENT_ID" > cognito_client_id.txt
 
-        {
-          echo "API_ENDPOINT=$API_ENDPOINT"
-          echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID"
-        } >> $GITHUB_ENV
+        echo "API_ENDPOINT=${API_ENDPOINT}" >> "$GITHUB_ENV"
+        echo "COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}" >> "$GITHUB_ENV"
 
     - name: Upload extension config
       uses: actions/upload-artifact@v4
