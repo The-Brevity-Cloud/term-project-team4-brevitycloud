@@ -97,14 +97,21 @@ jobs:
     - name: Export Terraform outputs
       working-directory: infrastructure
       run: |
-        API_ENDPOINT=$(terraform output -raw api_endpoint | tr -d '\n\r"')
-        COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id | tr -d '\n\r"')
+        # Run raw terraform output commands and capture only the clean value part
+        API_ENDPOINT=$(terraform output -raw api_endpoint 2>/dev/null | grep -Eo 'https://[a-zA-Z0-9.-]+\.amazonaws\.com/prod')
+        COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id 2>/dev/null | grep -Eo '^[a-z0-9]{20,}')
 
-        echo "$API_ENDPOINT" > api_endpoint.txt
-        echo "$COGNITO_CLIENT_ID" > cognito_client_id.txt
+        # Confirm values are clean
+        echo "Clean API_ENDPOINT: $API_ENDPOINT"
+        echo "Clean COGNITO_CLIENT_ID: $COGNITO_CLIENT_ID"
 
-        echo "API_ENDPOINT=${API_ENDPOINT}" >> "$GITHUB_ENV"
-        echo "COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}" >> "$GITHUB_ENV"
+        # Save to files for artifact upload
+        echo "$API_ENDPOINT" > ../api_endpoint.txt
+        echo "$COGNITO_CLIENT_ID" > ../cognito_client_id.txt
+
+        # Save to GitHub Actions env
+        echo "API_ENDPOINT=$API_ENDPOINT" >> "$GITHUB_ENV"
+        echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> "$GITHUB_ENV"
 
     - name: Upload extension config
       uses: actions/upload-artifact@v4
