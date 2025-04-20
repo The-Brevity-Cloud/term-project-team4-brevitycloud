@@ -4,14 +4,18 @@ set -e
 echo "Checking GitHub CLI login..."
 gh auth status || gh auth login
 
-echo "Downloading extension config artifact from latest GitHub Actions run..."
+echo "📦 Downloading latest extension config artifact from GitHub Actions..."
+rm -f api_endpoint.txt cognito_client_id.txt 
 gh run download -n extension-config
 
-echo "Reading values from artifact files..."
+echo "Download complete. Verifying files..."
+
 if [[ ! -f api_endpoint.txt || ! -f cognito_client_id.txt ]]; then
-  echo "Error: Output files not found. Make sure terraform-apply GitHub Action has run and uploaded artifacts."
+  echo "Error: Required config files not found after download."
   exit 1
 fi
+
+echo "Config files are ready to use."
 
 API_ENDPOINT=$(cat api_endpoint.txt)
 COGNITO_CLIENT_ID=$(cat cognito_client_id.txt)
@@ -41,9 +45,8 @@ echo "Launching Chrome with unpacked extension..."
 
 chrome_path="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
-$chrome_path \
+"$chrome_path" \
   --load-extension="$(pwd)/extension" \
-  --user-data-dir="$(mktemp -d)" \
   --no-first-run \
   --disable-extensions-except="$(pwd)/extension"
 

@@ -1,8 +1,8 @@
 // API Configuration
-const API_ENDPOINT = 'https://m9kcxanho0.execute-api.us-east-1.amazonaws.com/prod';
+const API_ENDPOINT = 'https://x1edhynvlb.execute-api.us-east-1.amazonaws.com/prod';
 const AUTH_ENDPOINT = `${API_ENDPOINT}/auth`;
 const SUMMARIZE_ENDPOINT = `${API_ENDPOINT}/summarize`;
-const COGNITO_CLIENT_ID = '3fmvt2ic67h32ds88imi1v14bl';
+const COGNITO_CLIENT_ID = 'tbkdge22dd54m8besu1phdj14';
 
 // UI Elements
 const authContainer = document.getElementById('authContainer');

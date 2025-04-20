@@ -98,7 +98,7 @@ jobs:
       working-directory: infrastructure
       run: |
         # Extract, filter, and clean the final values
-        API_ENDPOINT=$(terraform output -raw api_endpoint | grep -Eo 'https://[a-zA-Z0-9.-]+\.amazonaws\.com/prod' | tr -d '\r\n"')
+        API_ENDPOINT=$(terraform output -raw api_endpoint | tr -d '\r\n"')
         COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id | grep -Eo '^[a-zA-Z0-9]{10,}' | tr -d '\r\n"')
 
         echo "Clean API_ENDPOINT: $API_ENDPOINT"
