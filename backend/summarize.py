@@ -57,7 +57,9 @@ def verify_token(token):
 def call_bedrock(prompt, max_tokens=MAX_TOKENS, temperature=TEMPERATURE):
     """Make a call to Bedrock's Claude model"""
     try:
-
+        if len(prompt.split()) > 2000:
+            prompt = " ".join(prompt.split()[:2000])
+            
         response = bedrock_runtime.invoke_model(
             modelId=BEDROCK_MODEL,
             body=json.dumps({
@@ -267,7 +269,7 @@ Please provide a clear and concise answer based solely on the context provided."
             # Get response from Bedrock
             response = call_bedrock(prompt, max_tokens=1000)  # Longer response for chat
             if not response:
-                return "I apologize, but I'm having trouble generating a response. Please try again."
+                return "I apologize, but I'm having trouble generating a response. Please try again.", kendra_used
 
             return response, kendra_used
         else:

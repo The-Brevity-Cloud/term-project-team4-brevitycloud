@@ -22,7 +22,7 @@
         ]
     },
     "action": {
-        "default_popup": "popup.html",
+        "default_popup": "sidepanel.html",
         "default_icon": {
             "16": "assets/icon16.png",
             "48": "assets/icon48.png",
