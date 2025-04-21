@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BrevityCloud AI Assistant - Information</title>
+    <title>BrevityCloud AI Assistant - Info & User Manual</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -11,77 +11,64 @@
     <header>
         <div class="container">
             <h1>BrevityCloud AI Assistant</h1>
-            <p>Your intelligent companion for web content summarization and analysis.</p>
+            <p>Your smart companion for summarizing and analyzing web content using AWS-powered AI.</p>
         </div>
     </header>
 
     <section id="about">
         <div class="container">
-            <h2>About the Extension</h2>
+            <h2>🔍 About BrevityCloud</h2>
             <p>
-                BrevityCloud is a powerful Chrome extension designed to enhance your browsing experience.
-                Leveraging state-of-the-art AI models (including AWS Bedrock and Kendra), it provides concise summaries
-                of web pages, allows you to ask follow-up questions, detects text in images using Rekognition,
-                and can transcribe audio snippets using Transcribe.
+                BrevityCloud is a Chrome Extension that leverages advanced AWS AI services like Bedrock, Kendra, Rekognition, and Transcribe.
+                It summarizes webpages, enables Q&A over text and media, detects text in images, and even transcribes audio snippets.
             </p>
             <p>
-                This tool helps you quickly grasp the main points of lengthy articles, research papers, or reports,
-                saving you valuable time and effort.
+                Whether you're researching or casually browsing, BrevityCloud helps extract meaning efficiently—directly within Chrome.
             </p>
-            <!-- Add more details about features -->
         </div>
     </section>
 
     <section id="manual" class="manual">
         <div class="container">
-            <h2>User Manual</h2>
-            
-            <h3>Installation</h3>
+            <h2>📘 User Manual</h2>
+
+            <h3>🧩 Installation</h3>
             <ol>
-                <li>Download the latest extension package (`brevitycloud-extension-*.zip`) from the GitHub Actions artifacts.</li>
-                <li>Unzip the downloaded file to a permanent location on your computer.</li>
-                <li>Open Google Chrome and navigate to <code>chrome://extensions/</code>.</li>
-                <li>Enable "Developer mode" using the toggle switch in the top-right corner.</li>
-                <li>Click the "Load unpacked" button.</li>
-                <li>Select the unzipped extension folder (the one containing `manifest.json`).</li>
-                <li>The BrevityCloud icon should appear in your Chrome toolbar.</li>
+                <li>Download the latest BrevityCloud extension ZIP file from GitHub Actions.</li>
+                <li>Unzip and load it into Chrome from <code>chrome://extensions/</code>.</li>
+                <li>Enable "Developer Mode" → "Load Unpacked" → Select extracted folder.</li>
             </ol>
 
-            <h3>Initial Login</h3>
-             <ol>
-                <li>Click the BrevityCloud icon in your toolbar to open the side panel.</li>
-                <li>If you are not logged in, you will see a "Login" button.</li>
-                <li>Click "Login". A popup window will appear.</li>
-                <li>Enter your registered BrevityCloud credentials (email/password).</li>
-                <li>Upon successful login, the popup will close, and the side panel will show the main interface.</li>
-                <li>(Note: Registration and verification must be handled separately if not already done).</li>
-             </ol>
+            <h3>🔐 Initial Login</h3>
+            <ol>
+                <li>Open the sidepanel from the Chrome Extension icon.</li>
+                <li>Click "Login" and enter your credentials (API-authenticated via Cognito).</li>
+                <li>Upon success, the panel unlocks access to all features.</li>
+            </ol>
 
-            <h3>Using the Features</h3>
+            <h3>✨ Key Features</h3>
             <ul>
-                <li><strong>Summarize Page:</strong> Click the "Summarize Current Page" button. The AI will process the main content and display a summary.</li>
-                <li><strong>Chat/Query:</strong> After summarizing, type a question about the page content into the input box at the bottom and click "Send" (or press Enter).</li>
-                <li><strong>Model Selection (Kendra/Bedrock):</strong> Use the toggle buttons to choose the underlying AI model for summarization and chat queries. Kendra utilizes indexed content, while Bedrock provides more general large language model capabilities.</li>
-                <li><strong>Detect Text in Image:</strong> Right-click on an image on any webpage and select "Detect Text Using Amazon Rekognition". The side panel will open (if not already open) and display the detected text.</li>
-                <li><strong>Transcribe Audio:</strong> Click the microphone icon (🎙️) to start recording audio using your microphone. Click the stop icon (⏹️) when finished. The transcribed text will appear in the chat input box. (Requires microphone permission).</li>
-                <li><strong>View History:</strong> Click the "View History" button to see a list of your past summaries. Click an item to view the full summary again.</li>
-                 <li><strong>Logout:</strong> Click the "Logout" button to end your session.</li>
+                <li><strong>Summarize Page:</strong> Quickly condense any webpage.</li>
+                <li><strong>Follow-Up Q&A:</strong> Ask natural language questions about the page.</li>
+                <li><strong>Kendra vs. Bedrock:</strong> Choose between factual retrieval and generative responses.</li>
+                <li><strong>Text from Images:</strong> Right-click any image → Detect Text (via Rekognition).</li>
+                <li><strong>Transcribe Audio:</strong> Record live speech and receive a transcription using Transcribe.</li>
+                <li><strong>History:</strong> Access previous summaries and insights.</li>
             </ul>
-            
-            <h3>Troubleshooting</h3>
+
+            <h3>🛠️ Troubleshooting</h3>
             <ul>
-                <li><strong>Login Issues:</strong> Ensure you are using the correct credentials and that your account is verified. Check the API Gateway and Cognito configurations in AWS.</li>
-                <li><strong>Summarization Failed:</strong> The page might not have enough extractable content, or there might be an issue with the backend Lambda/AI model. Check Lambda logs.</li>
-                <li><strong>Extension Errors:</strong> Open the extension's console logs (Background script and Side Panel) for detailed error messages. Right-click the side panel -> Inspect, and go to `chrome://extensions/` -> Details -> Service Worker console.</li>
+                <li><strong>Login Failures:</strong> Ensure credentials are valid; check Cognito status.</li>
+                <li><strong>No Summary Returned:</strong> Verify Lambda is active and has API Gateway access.</li>
+                <li><strong>Debugging:</strong> Use Chrome DevTools → Inspect the extension panel or service worker logs.</li>
             </ul>
-            <!-- Add more detailed steps, screenshots if possible -->
         </div>
     </section>
 
     <footer>
         <div class="container">
-            <p>&copy; 2024 BrevityCloud Team 4. All rights reserved.</p>
+            <p>&copy; 2024 Team 4 - BrevityCloud | All rights reserved.</p>
         </div>
     </footer>
 </body>
-</html> 
+</html>
