@@ -83,6 +83,6 @@ module "amplify_landing_page" {
   app_name               = "brevitycloud-landing-page"
   repo_url               = var.github_repository_url
   github_pat_secret_name = var.github_pat_secret_name
-  branch_name            = "main"
+  branch_name            = "amplify"
   user_tag               = var.user
 }

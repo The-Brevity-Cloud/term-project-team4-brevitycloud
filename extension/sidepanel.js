@@ -1,8 +1,8 @@
 // API Configuration
-const API_ENDPOINT = 'https://65qogtpin1.execute-api.us-east-1.amazonaws.com/prod';
+const API_ENDPOINT = 'https://y92m42xlij.execute-api.us-east-1.amazonaws.com/prod';
 const AUTH_ENDPOINT = `${API_ENDPOINT}/auth`;
 const SUMMARIZE_ENDPOINT = `${API_ENDPOINT}/summarize`;
-const COGNITO_CLIENT_ID = '7n7mrckbmgc4ru1bjbccj4462';
+const COGNITO_CLIENT_ID = '6e4dkc1t8ninc5kcomfimjkbvq';
 
 // UI Elements
 const authContainer = document.getElementById('authContainer');
@@ -891,3 +891,4 @@ async function fetchHistory() {
         historyLoading.style.display = 'none';
     }
 }
+
