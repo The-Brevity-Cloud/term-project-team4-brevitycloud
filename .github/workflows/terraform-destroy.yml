@@ -67,4 +67,4 @@ jobs:
         terraform init -backend-config="bucket=tf-state-${{ env.USER }}-brevity" \
                         -backend-config="key=${{ env.USER }}/terraform.tfstate" \
                         -backend-config="region=us-east-1"
-        terraform destroy -auto-approve
+        terraform destroy -auto-approve -var="user=${{ env.USER }}"
