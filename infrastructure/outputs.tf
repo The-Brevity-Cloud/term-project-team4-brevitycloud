@@ -12,3 +12,10 @@ output "cognito_user_pool_id" {
   value       = module.cognito.cognito_user_pool_id
   description = "Cognito User Pool ID"
 }
+
+# Add Amplify Landing Page URL Output
+output "amplify_landing_page_url" {
+  description = "URL for the static landing page hosted on Amplify"
+  # Use the default_domain output from the amplify module instance
+  value       = "https://${module.amplify_landing_page.default_domain}"
+}

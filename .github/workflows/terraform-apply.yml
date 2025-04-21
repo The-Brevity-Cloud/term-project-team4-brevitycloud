@@ -97,28 +97,39 @@ jobs:
     - name: Export Terraform outputs
       working-directory: infrastructure
       run: |
-        # Extract, filter, and clean the final values
+        # Extract, filter, and clean the final values for PowerShell script
         API_ENDPOINT=$(terraform output -raw api_endpoint | tr -d '\r\n"')
         COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id | grep -Eo '^[a-zA-Z0-9]{10,}' | tr -d '\r\n"')
-
+        
         echo "Clean API_ENDPOINT: $API_ENDPOINT"
         echo "Clean COGNITO_CLIENT_ID: $COGNITO_CLIENT_ID"
-
+        
         echo "$API_ENDPOINT" > ../api_endpoint.txt
         echo "$COGNITO_CLIENT_ID" > ../cognito_client_id.txt
+        
+        # Also extract and print the Amplify URL for information
+        AMPLIFY_URL=$(terraform output -raw amplify_landing_page_url | tr -d '\r\n"')
+        echo "--------------------------------------------------"
+        echo "Amplify Landing Page URL: $AMPLIFY_URL"
+        echo "--------------------------------------------------"
 
-        echo "API_ENDPOINT=$API_ENDPOINT" >> "$GITHUB_ENV"
-        echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> "$GITHUB_ENV"
+        # Set outputs as environment variables if needed by subsequent steps (unlikely now)
+        # echo "API_ENDPOINT=$API_ENDPOINT" >> "$GITHUB_ENV"
+        # echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> "$GITHUB_ENV"
+        # echo "AMPLIFY_URL=$AMPLIFY_URL" >> "$GITHUB_ENV"
 
-    - name: Upload extension config
+    - name: Upload extension config artifact (for PowerShell)
       uses: actions/upload-artifact@v4
       with:
-        name: extension-config
+        name: extension-config # Keep original name if PS script expects it
         path: |
           api_endpoint.txt
           cognito_client_id.txt
-        if-no-files-found: warn
-        compression-level: 6
-        overwrite: false
-        include-hidden-files: false
+        if-no-files-found: warn 
+        # Removed other options like compression for simplicity, add back if needed
+
+    # No packaging of extension needed in this workflow anymore, assuming PS script handles it
+    # - name: Package Extension Files
+    #   uses: actions/upload-artifact@v4
+    #   ...
 

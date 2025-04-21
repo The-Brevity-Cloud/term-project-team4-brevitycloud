@@ -33,7 +33,6 @@ module "s3" {
   kendra_role_arn  = module.kendra.kendra_role_arn
 }
 
-# Then create Lambda module (with S3 outputs as inputs)
 module "lambda" {
   source                = "./modules/lambda"
   project_name          = var.project_name
@@ -76,4 +75,14 @@ module "transcribe" {
   transcribe_lambda_zip_path  = "${path.module}/lambda_function_transcribe.zip"
   # transcribe_policy_arn is defaulted
   # s3_policy_arn - Assuming shared role policy is sufficient for PutObject
+}
+
+module "amplify_landing_page" {
+  source = "./modules/amplify"
+
+  app_name               = "brevitycloud-landing-page"
+  repo_url               = var.github_repository_url
+  github_pat_secret_name = var.github_pat_secret_name
+  branch_name            = "main"
+  user_tag               = var.user
 }

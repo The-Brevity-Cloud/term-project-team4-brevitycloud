@@ -1,0 +1,92 @@
+/* styles.css */
+body {
+    font-family: 'Inter', sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    color: #333;
+    background-color: #f8f9fa;
+}
+
+.container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+header {
+    background-color: #007bff;
+    color: white;
+    padding: 30px 0;
+    text-align: center;
+}
+
+header h1 {
+    margin: 0 0 10px 0;
+    font-size: 2.5em;
+    font-weight: 700;
+}
+
+header p {
+    font-size: 1.1em;
+    font-weight: 400;
+    opacity: 0.9;
+}
+
+section {
+    padding: 40px 0;
+}
+
+section h2 {
+    font-size: 2em;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #0056b3;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 10px;
+}
+
+section#about p {
+    font-size: 1.05em;
+    margin-bottom: 15px;
+}
+
+.manual h3 {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: #343a40;
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
+
+.manual ol,
+.manual ul {
+    margin-left: 20px;
+    margin-bottom: 20px;
+}
+
+.manual li {
+    margin-bottom: 10px;
+    font-size: 1em;
+}
+
+.manual code {
+    background-color: #e9ecef;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.95em;
+}
+
+footer {
+    background-color: #343a40;
+    color: white;
+    text-align: center;
+    padding: 20px 0;
+    margin-top: 40px;
+}
+
+footer p {
+    margin: 0;
+    font-size: 0.9em;
+} 
