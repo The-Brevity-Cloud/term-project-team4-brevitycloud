@@ -18,13 +18,8 @@
     <section id="about">
         <div class="container">
             <h2>🔍 About BrevityCloud</h2>
-            <p>
-                BrevityCloud is a Chrome Extension that leverages advanced AWS AI services like Bedrock, Kendra, Rekognition, and Transcribe.
-                It summarizes webpages, enables Q&A over text and media, detects text in images, and even transcribes audio snippets.
-            </p>
-            <p>
-                Whether you're researching or casually browsing, BrevityCloud helps extract meaning efficiently—directly within Chrome.
-            </p>
+            <p>BrevityCloud is a Chrome Extension that leverages advanced AWS AI services like Bedrock, Kendra, Rekognition, and Transcribe.</p>
+            <p>It summarizes webpages, enables Q&A over text and media, detects text in images, and even transcribes audio snippets.</p>
         </div>
     </section>
 
@@ -32,35 +27,76 @@
         <div class="container">
             <h2>📘 User Manual</h2>
 
-            <h3>🧩 Installation</h3>
-            <ol>
-                <li>Download the latest BrevityCloud extension ZIP file from GitHub Actions.</li>
-                <li>Unzip and load it into Chrome from <code>chrome://extensions/</code>.</li>
-                <li>Enable "Developer Mode" → "Load Unpacked" → Select extracted folder.</li>
-            </ol>
-
-            <h3>🔐 Initial Login</h3>
-            <ol>
-                <li>Open the sidepanel from the Chrome Extension icon.</li>
-                <li>Click "Login" and enter your credentials (API-authenticated via Cognito).</li>
-                <li>Upon success, the panel unlocks access to all features.</li>
-            </ol>
-
-            <h3>✨ Key Features</h3>
+            <h3>📑 Table of Contents</h3>
             <ul>
-                <li><strong>Summarize Page:</strong> Quickly condense any webpage.</li>
-                <li><strong>Follow-Up Q&A:</strong> Ask natural language questions about the page.</li>
-                <li><strong>Kendra vs. Bedrock:</strong> Choose between factual retrieval and generative responses.</li>
-                <li><strong>Text from Images:</strong> Right-click any image → Detect Text (via Rekognition).</li>
-                <li><strong>Transcribe Audio:</strong> Record live speech and receive a transcription using Transcribe.</li>
-                <li><strong>History:</strong> Access previous summaries and insights.</li>
+                <li><a href="#installation">Installation</a></li>
+                <li><a href="#initial-login">Initial Login</a></li>
+                <li><a href="#key-features">Key Features</a></li>
+                <li><a href="#usage-scenarios">Usage Scenarios</a></li>
+                <li><a href="#aws-setup">AWS Setup</a></li>
+                <li><a href="#backend-deployment">Backend Deployment</a></li>
+                <li><a href="#troubleshooting">Troubleshooting</a></li>
             </ul>
 
-            <h3>🛠️ Troubleshooting</h3>
+            <h3 id="installation">🧩 Installation</h3>
+            <ol>
+                <li>Download the latest BrevityCloud extension ZIP file from GitHub Actions.</li>
+                <li>Unzip and load it into Chrome via <code>chrome://extensions/</code>.</li>
+                <li>Enable "Developer Mode" → "Load Unpacked" → Select the extracted folder.</li>
+            </ol>
+
+            <h3 id="initial-login">🔐 Initial Login</h3>
+            <ol>
+                <li>Click the extension icon to open the side panel.</li>
+                <li>Click "Login" and enter credentials (handled via AWS Cognito).</li>
+                <li>Access all features upon successful authentication.</li>
+            </ol>
+
+            <h3 id="key-features">✨ Key Features</h3>
             <ul>
-                <li><strong>Login Failures:</strong> Ensure credentials are valid; check Cognito status.</li>
-                <li><strong>No Summary Returned:</strong> Verify Lambda is active and has API Gateway access.</li>
-                <li><strong>Debugging:</strong> Use Chrome DevTools → Inspect the extension panel or service worker logs.</li>
+                <li><strong>Summarize Page:</strong> Quickly condense webpage content.</li>
+                <li><strong>Follow-Up Q&A:</strong> Ask questions based on page context.</li>
+                <li><strong>Kendra vs. Bedrock:</strong> Choose between factual and generative AI.</li>
+                <li><strong>Text from Images:</strong> Use Rekognition via right-click menu.</li>
+                <li><strong>Transcribe Audio:</strong> Use your mic to generate transcripts.</li>
+                <li><strong>History:</strong> View your last 5 interactions with summaries and chats.</li>
+            </ul>
+
+            <h3 id="usage-scenarios">🧪 Usage Scenarios</h3>
+            <ul>
+                <li><strong>Summarizing a Webpage:</strong> Navigate, log in, click "Summarize this page."</li>
+                <li><strong>Chatting with Context:</strong> Summarize first, then ask questions.</li>
+                <li><strong>Image Text Detection:</strong> Right-click image → Select “Detect Text.”</li>
+                <li><strong>Voice Input:</strong> Click mic icon, speak, confirm, and submit.</li>
+                <li><strong>History:</strong> Click “View History” to revisit prior content.</li>
+                <li><strong>Logout:</strong> Use the bottom-panel "Logout" button.</li>
+            </ul>
+
+            <h3 id="aws-setup">☁️ AWS Setup</h3>
+            <p>Configure your AWS CLI with:</p>
+            <pre><code>aws configure</code></pre>
+            <p>Ensure Bedrock model access is granted in the AWS Console for the specified model.</p>
+
+            <h3 id="backend-deployment">🧱 Backend Deployment (Terraform)</h3>
+            <ol>
+                <li>Navigate to the infrastructure folder:
+                    <pre><code>cd infrastructure</code></pre>
+                </li>
+                <li>Initialize and apply Terraform:
+                    <pre><code>terraform init -upgrade
+terraform apply -auto-approve</code></pre>
+                </li>
+                <li>Note down API Gateway and Cognito Client ID from:
+                    <pre><code>terraform output</code></pre>
+                </li>
+            </ol>
+
+            <h3 id="troubleshooting">🛠️ Troubleshooting</h3>
+            <ul>
+                <li><strong>Login Errors:</strong> Check API credentials and Cognito setup.</li>
+                <li><strong>No Summary:</strong> Inspect Lambda and Gateway configs.</li>
+                <li><strong>Microphone Issues:</strong> Verify permissions via Chrome settings.</li>
+                <li><strong>Extension Not Updating:</strong> Reload extension and inspect background.js.</li>
             </ul>
         </div>
     </section>

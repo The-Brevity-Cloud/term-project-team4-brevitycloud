@@ -77,6 +77,25 @@ section#about p {
     font-size: 0.95em;
 }
 
+pre {
+    background-color: #f1f1f1;
+    padding: 12px;
+    overflow-x: auto;
+    border-left: 4px solid #007bff;
+    margin: 10px 0;
+    font-size: 0.95em;
+}
+
+a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
 footer {
     background-color: #343a40;
     color: white;
