@@ -133,10 +133,7 @@ jobs:
         terraform apply -auto-approve -no-color \
           -target=module.ecr_rekognition \
           -target=module.ecr_transcribe \
-          -var="user=${{ env.USER }}" \
-          # Explicitly set dummy values for image URIs if required by TF plan/apply, even if not used by ECR modules
-          -var="rekognition_image_uri=placeholder" \
-          -var="transcribe_image_uri=placeholder"
+          -var="user=${{ env.USER }}"
 
     # --- Build, Tag, Push Container Images (Moved After ECR Creation) ---
     - name: Login to Amazon ECR # Correct position, relying on env credentials
