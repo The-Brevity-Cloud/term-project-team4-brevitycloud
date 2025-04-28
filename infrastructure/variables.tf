@@ -38,11 +38,11 @@ variable "environment" {
 variable "rekognition_image_uri" {
   description = "ECR image URI for the Rekognition service container (including tag)"
   type        = string
-  # No default - must be provided by workflow
+  default     = "placeholder" # Add default value
 }
 
 variable "transcribe_image_uri" {
   description = "ECR image URI for the Transcribe service container (including tag)"
   type        = string
-  # No default - must be provided by workflow
+  default     = "placeholder" # Add default value
 }
