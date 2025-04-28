@@ -178,10 +178,27 @@ jobs:
       id: plan
       working-directory: infrastructure
       run: |
+        # Run plan, capturing all output to a file, and allow step to continue
         terraform plan -no-color \
           -var="user=${{ env.USER }}" \
           -var="rekognition_image_uri=${{ steps.build-rekognition-image.outputs.image }}" \
-          -var="transcribe_image_uri=${{ steps.build-transcribe-image.outputs.image }}"
+          -var="transcribe_image_uri=${{ steps.build-transcribe-image.outputs.image }}" > plan.out 2>&1 || true
+          
+        # Print the full output
+        echo "--- Terraform Plan Output --- "
+        cat plan.out
+        echo "--- End Terraform Plan Output --- "
+
+        # Check the exit status of terraform plan (requires bash specific features)
+        # Extract the exit code from the command status pipeline
+        PLAN_EXIT_CODE=${PIPESTATUS[0]}
+        echo "Terraform Plan Exit Code: $PLAN_EXIT_CODE"
+        
+        # Fail the step if plan failed
+        if [ $PLAN_EXIT_CODE -ne 0 ]; then
+          echo "::error::Terraform Plan failed with exit code $PLAN_EXIT_CODE"
+          exit $PLAN_EXIT_CODE
+        fi
           
     - name: Terraform Apply (Full)
       id: apply 
