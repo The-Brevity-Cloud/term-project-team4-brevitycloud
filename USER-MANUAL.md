@@ -6,11 +6,9 @@ This document provides detailed instructions on how to set up, configure, and us
 
 1.  [Prerequisites](#prerequisites)
 2.  [AWS Setup](#aws-setup)
-3.  [Backend Deployment (Terraform)](#backend-deployment-terraform)
-4.  [Packaging Lambda Functions](#packaging-lambda-functions)
-5.  [Applying Infrastructure Changes](#applying-infrastructure-changes)
-6.  [Frontend Setup (Extension Loading)](#frontend-setup-extension-loading)
-7.  [Usage Scenarios](#usage-scenarios)
+3.  [Backend Deployment (Automated)](#backend-deployment-automated)
+4.  [Backend Deployment (Automated)](#backend-deployment-terraform)
+5.  [Usage Scenarios](#usage-scenarios)
     *   [Registration & Login](#registration--login)
     *   [Summarizing a Webpage](#summarizing-a-webpage)
     *   [Chatting with Page Context](#chatting-with-page-context)
@@ -18,8 +16,8 @@ This document provides detailed instructions on how to set up, configure, and us
     *   [Using Voice Input](#using-voice-input)
     *   [Viewing History](#viewing-history)
     *   [Logging Out](#logging-out)
-8.  [Troubleshooting](#troubleshooting)
-9.  [Development Notes](#development-notes)
+6.  [Troubleshooting](#troubleshooting)
+7.  [Development Notes](#development-notes)
 
 ---
 
@@ -220,7 +218,7 @@ Once the necessary Lambda functions are packaged:
 
 3.  **Pin the Extension (Optional):** Click the puzzle piece icon in your Chrome toolbar and pin the BrevityCloud extension for easy access.
 
-## 7. Usage Scenarios
+## 5. Usage Scenarios
 
 ### Registration & Login
 
@@ -278,7 +276,7 @@ Once the necessary Lambda functions are packaged:
 1.  Click the "Logout" button at the bottom of the main panel.
 2.  You will be returned to the login screen.
 
-## 8. Troubleshooting
+## 6. Troubleshooting
 
 *   **"Network error occurred..." on Login:** Double-check the `API_ENDPOINT` in `sidepanel.js` matches the Terraform output exactly. Check browser developer console (F12 -> Network tab) for failed requests (CORS errors, 4xx/5xx codes).
 *   **"Failed to generate summary" / "Internal server error":** Check CloudWatch Logs for the relevant Lambda function (`dev-brevity-cloud-summarize`, `dev-brevity-cloud-rekognition`, etc.) in the AWS region you deployed to. Look for Python errors or permission issues.
@@ -286,7 +284,7 @@ Once the necessary Lambda functions are packaged:
 *   **Extension Doesn't Update After Navigation:** This is expected if not handled. The fix involves the `tabs.onUpdated` listener (implemented in the current code). If it's not working, ensure `background.js` and `sidepanel.js` have the latest code and reload the extension.
 *   **Terraform Errors:** Carefully read the error message. It often points to missing permissions, incorrect variable values, resource conflicts, or syntax errors.
 
-## 9. Development Notes
+## 7. Development Notes
 
 *   **Configuration:** Manually updating `sidepanel.js` with Terraform outputs is prone to error. Consider implementing a build step (e.g., using `sed`, `envsubst`, or a Node.js script) in a local script or CI/CD pipeline (like GitHub Actions) to automatically replace placeholder values before packaging the extension.
 *   **Dependencies:** Remember to run the appropriate packaging script after modifying backend Python code or dependencies.
