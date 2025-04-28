@@ -45,9 +45,9 @@ This document provides detailed instructions on how to set up, configure, and us
     *   Go to "Model access" (or similar section).
     *   Request access and ensure access is granted for the model used in `backend/summarize.py` (currently `anthropic.claude-3-sonnet-20240229-v1:0`).
 
-# BrevityCloud Deployment Instructions (Automated Setup)
+# 3. BrevityCloud Deployment Instructions (Automated Setup)
 
-Welcome to BrevityCloud! Follow these steps to automatically deploy your infrastructure and update the Chrome extension.
+Follow these steps to automatically deploy your infrastructure and update the Chrome extension.
 
 ---
 
@@ -82,13 +82,15 @@ All in **UPPERCASE** for secret names.
 
 ---
 
-## 3.3 Enable Developer Mode on Chrome
+## 3.3 Enable Developer Mode on Chrome (Please use on default chrome account)
 
 Prepare Chrome for loading your extension:
 
 - Open Chrome and go to:  
   `chrome://extensions/`
 - **Enable Developer Mode** (top-right toggle).
+
+![Architecture Diagram](resources/chrome_developer.png)
 
 ---
 
@@ -113,8 +115,20 @@ Once infrastructure is deployed (From project's root directory):
   bash deploy.sh
 
 - On **Windows**, run:
-  ```./deployment.ps1
+  ```powershell
+  .\deployment.ps1
 
+The app should be up and running
+
+## 3.6 Destory Resources and Spin down Infrastructure
+
+- Navigate to **GitHub → Actions → Terraform Destroy**.
+- Click **"Run workflow"**.
+- Enter **your first name in lowercase (Same name you used for apply)** (e.g., `michael`, `shireen`, `peyton`).
+- Please give some time for deployment to complete In average it takes **25-30 minutes**.
+
+
+# 3. BrevityCloud Deployment Instructions (Manual/Local Setup)
 
 ## 4.1 Backend Deployment (Terraform)
 
