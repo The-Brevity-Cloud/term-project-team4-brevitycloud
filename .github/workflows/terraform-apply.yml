@@ -166,11 +166,12 @@ jobs:
         IMAGE_TAG: ${{ github.sha }} 
         ECR_REPO_NAME: ${{ env.ECR_REPO_REKOGNITION }}
       run: |
-        echo "Building Rekognition image..."
-        docker build -t $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG -f backend/Dockerfile.rekognition backend/
+        FULL_IMAGE_NAME="$ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"
+        echo "Building Rekognition image: $FULL_IMAGE_NAME"
+        docker build -t "$FULL_IMAGE_NAME" -f backend/Dockerfile.rekognition backend/
         echo "Pushing Rekognition image..."
-        docker push $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG
-        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"
+        docker push "$FULL_IMAGE_NAME"
+        echo "::set-output name=image::$FULL_IMAGE_NAME"
 
     - name: Build, tag, and push Transcribe image to Amazon ECR # Correct position
       id: build-transcribe-image # Correct position
@@ -179,11 +180,12 @@ jobs:
         IMAGE_TAG: ${{ github.sha }} 
         ECR_REPO_NAME: ${{ env.ECR_REPO_TRANSCRIBE }}
       run: |
-        echo "Building Transcribe image..."
-        docker build -t $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG -f backend/Dockerfile.transcribe backend/
+        FULL_IMAGE_NAME="$ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"
+        echo "Building Transcribe image: $FULL_IMAGE_NAME"
+        docker build -t "$FULL_IMAGE_NAME" -f backend/Dockerfile.transcribe backend/
         echo "Pushing Transcribe image..."
-        docker push $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG
-        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"
+        docker push "$FULL_IMAGE_NAME"
+        echo "::set-output name=image::$FULL_IMAGE_NAME"
                         
     # --- Terraform Plan & Apply (Full Infrastructure) ---
     - name: Terraform Plan (Full)
