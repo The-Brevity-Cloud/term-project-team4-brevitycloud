@@ -84,42 +84,6 @@ jobs:
 
     # --- End of User-Specific Credential Configuration --- 
 
-    - name: Login to Amazon ECR
-      # id: login-ecr # ID removed, step moved later
-      uses: aws-actions/amazon-ecr-login@v2
-
-    - name: Debug ECR Login Output
-      run: |
-        echo "ECR Registry Output: ${{ steps.login-ecr.outputs.registry }}"
-        echo "ECR Login Step Outcome: ${{ steps.login-ecr.outcome }}"
-
-    # --- Build, Tag, Push Container Images ---
-    - name: Build, tag, and push Rekognition image to Amazon ECR
-      # id: build-rekognition-image # ID removed, step moved later
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-        ECR_REPO_NAME: ${{ env.ECR_REPO_REKOGNITION }}
-      run: |
-        echo "Building Rekognition image..."
-        docker build -t $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG -f backend/Dockerfile.rekognition backend/
-        echo "Pushing Rekognition image..."
-        docker push $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG
-        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"
-
-    - name: Build, tag, and push Transcribe image to Amazon ECR
-      # id: build-transcribe-image # ID removed, step moved later
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-        ECR_REPO_NAME: ${{ env.ECR_REPO_TRANSCRIBE }}
-      run: |
-        echo "Building Transcribe image..."
-        docker build -t $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG -f backend/Dockerfile.transcribe backend/
-        echo "Pushing Transcribe image..."
-        docker push $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG
-        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"
-
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v3
 
@@ -169,19 +133,15 @@ jobs:
         terraform apply -auto-approve -no-color \
           -target=module.ecr_rekognition \
           -target=module.ecr_transcribe \
-          -var="user=${{ env.USER }}"
+          -var="user=${{ env.USER }}" \
           # Explicitly set dummy values for image URIs if required by TF plan/apply, even if not used by ECR modules
           -var="rekognition_image_uri=placeholder" \
           -var="transcribe_image_uri=placeholder"
 
     # --- Build, Tag, Push Container Images (Moved After ECR Creation) ---
-    - name: Login to Amazon ECR # Correct position & Explicit Credentials
+    - name: Login to Amazon ECR # Correct position, relying on env credentials
       id: login-ecr # Correct position
       uses: aws-actions/amazon-ecr-login@v2
-      with: # Explicitly pass credentials 
-        aws-access-key-id: ${{ secrets[format('AWS_ACCESS_KEY_ID_{0}', env.USER)] }}
-        aws-secret-access-key: ${{ secrets[format('AWS_SECRET_ACCESS_KEY_{0}', env.USER)] }}
-        aws-region: ${{ env.AWS_REGION }}
 
     - name: Debug ECR Login Output
       run: |
@@ -191,7 +151,7 @@ jobs:
     - name: Build, tag, and push Rekognition image to Amazon ECR # Correct position
       id: build-rekognition-image # Correct position
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }} # Reference correct login step
         IMAGE_TAG: ${{ github.sha }} 
         ECR_REPO_NAME: ${{ env.ECR_REPO_REKOGNITION }}
       run: |
@@ -205,7 +165,7 @@ jobs:
     - name: Build, tag, and push Transcribe image to Amazon ECR # Correct position
       id: build-transcribe-image # Correct position
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }} # Reference correct login step
         IMAGE_TAG: ${{ github.sha }} 
         ECR_REPO_NAME: ${{ env.ECR_REPO_TRANSCRIBE }}
       run: |
