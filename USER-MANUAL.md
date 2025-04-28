@@ -45,7 +45,78 @@ This document provides detailed instructions on how to set up, configure, and us
     *   Go to "Model access" (or similar section).
     *   Request access and ensure access is granted for the model used in `backend/summarize.py` (currently `anthropic.claude-3-sonnet-20240229-v1:0`).
 
-## 3. Backend Deployment (Terraform)
+# BrevityCloud Deployment Instructions (Automated Setup)
+
+Welcome to BrevityCloud! Follow these steps to automatically deploy your infrastructure and update the Chrome extension.
+
+---
+
+## 3.1 GitHub Secrets Setup
+
+Set your AWS credentials securely under GitHub Secrets:
+
+- **AWS_ACCESS_KEY_{FIRSTNAME}** → Your AWS Access Key ID
+- **AWS_SECRET_KEY_{FIRSTNAME}** → Your AWS Secret Access Key
+
+All in **UPPERCASE** for secret names.
+
+**Example:**
+- For Professor Michael:  
+  - `AWS_ACCESS_KEY_MICHAEL`
+  - `AWS_SECRET_KEY_MICHAEL`
+- For TA Shireen:  
+  - `AWS_ACCESS_KEY_SHIREEN`
+  - `AWS_SECRET_KEY_SHIREEN`
+- For TA Peyton:  
+  - `AWS_ACCESS_KEY_PEYTON`
+  - `AWS_SECRET_KEY_PEYTON`
+
+---
+
+## 3.2 Deploy Infrastructure via GitHub Actions
+
+- Navigate to **GitHub → Actions → Terraform Apply**.
+- Click **"Run workflow"**.
+- Enter **your first name in lowercase** (e.g., `michael`, `shireen`, `peyton`).
+- Sit back and relax — deployment will complete in about **5 minutes**.
+
+---
+
+## 3.3 Enable Developer Mode on Chrome
+
+Prepare Chrome for loading your extension:
+
+- Open Chrome and go to:  
+  `chrome://extensions/`
+- **Enable Developer Mode** (top-right toggle).
+
+---
+
+## 3.4 Load the Extension (First Time Only)
+
+Because Chrome restricts auto-creating extensions:
+
+1. In `chrome://extensions/`, click **"Load unpacked"** (top-left).
+2. Select the `/extension` folder from the project.
+3. The extension will appear in your list.
+
+> _Note: You only need to load manually once._
+
+---
+
+## 3.5 Sync Latest Endpoints & Reload Extension
+
+Once infrastructure is deployed (From project's root directory):
+
+- On **Mac/Linux**, run:
+  ```bash
+  bash deploy.sh
+
+- On **Windows**, run:
+  ```./deployment.ps1
+
+
+## 4.1 Backend Deployment (Terraform)
 
 The backend infrastructure (Lambda functions, API Gateway, Cognito, etc.) is managed by Terraform.
 
@@ -67,7 +138,7 @@ The backend infrastructure (Lambda functions, API Gateway, Cognito, etc.) is man
     # terraform apply -auto-approve 
     ```
 
-## 4. Packaging Lambda Functions
+## 4.2 Packaging Lambda Functions
 
 Before applying Terraform changes that involve Lambda code updates, you need to create the deployment packages (.zip files).
 
@@ -94,7 +165,7 @@ Before applying Terraform changes that involve Lambda code updates, you need to 
 
     These scripts create `.zip` files inside the `infrastructure/` directory, which Terraform uses.
 
-## 5. Applying Infrastructure Changes
+## 4.3 Applying Infrastructure Changes
 
 Once the necessary Lambda functions are packaged:
 
@@ -112,7 +183,7 @@ Once the necessary Lambda functions are packaged:
     terraform output cognito_user_pool_client_id
     ```
 
-## 6. Frontend Setup (Extension Loading)
+## 4.4 Frontend Setup (Extension Loading)
 
 1.  **Update Configuration:** Open the `extension/sidepanel.js` file in a text editor.
     *   Find the constants `API_ENDPOINT` and `COGNITO_CLIENT_ID` near the top.
