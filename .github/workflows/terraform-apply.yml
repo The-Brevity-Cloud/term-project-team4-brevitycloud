@@ -95,38 +95,52 @@ jobs:
         terraform apply -auto-approve -var="user=${{ env.USER }}"
 
     - name: Export Terraform outputs
+      id: get_outputs
       working-directory: infrastructure
       run: |
         # Extract, filter, and clean the final values for PowerShell script
         API_ENDPOINT=$(terraform output -raw api_endpoint | tr -d '\r\n"')
         COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id | grep -Eo '^[a-zA-Z0-9]{10,}' | tr -d '\r\n"')
-        
+        AMPLIFY_APP_ID=$(terraform output -raw amplify_app_id | tr -d '\r\n"')
+
         echo "Clean API_ENDPOINT: $API_ENDPOINT"
         echo "Clean COGNITO_CLIENT_ID: $COGNITO_CLIENT_ID"
-        
+        echo "Clean AMPLIFY_APP_ID: $AMPLIFY_APP_ID"
+
         echo "$API_ENDPOINT" > ../api_endpoint.txt
         echo "$COGNITO_CLIENT_ID" > ../cognito_client_id.txt
-        
+
         # Also extract and print the Amplify URL for information
         AMPLIFY_URL=$(terraform output -raw amplify_landing_page_url | tr -d '\r\n"')
         echo "--------------------------------------------------"
         echo "Amplify Landing Page URL: $AMPLIFY_URL"
         echo "--------------------------------------------------"
 
-        # Set outputs as environment variables if needed by subsequent steps (unlikely now)
-        # echo "API_ENDPOINT=$API_ENDPOINT" >> "$GITHUB_ENV"
-        # echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> "$GITHUB_ENV"
-        # echo "AMPLIFY_URL=$AMPLIFY_URL" >> "$GITHUB_ENV"
+        # Set outputs for use in subsequent steps
+        echo "amplify_app_id=$AMPLIFY_APP_ID" >> $GITHUB_OUTPUT
 
     - name: Upload extension config artifact (for PowerShell)
       uses: actions/upload-artifact@v4
       with:
-        name: extension-config # Keep original name if PS script expects it
+        name: extension-config
         path: |
           api_endpoint.txt
           cognito_client_id.txt
-        if-no-files-found: warn 
-        # Removed other options like compression for simplicity, add back if needed
+        if-no-files-found: warn
+        retention-days: 1
+
+    - name: Trigger Amplify Deployment
+      env:
+        AMPLIFY_APP_ID: ${{ steps.get_outputs.outputs.amplify_app_id }}
+        AWS_DEFAULT_REGION: us-east-1
+      run: |
+        if [ -z "$AMPLIFY_APP_ID" ]; then
+          echo "Error: AMPLIFY_APP_ID is not set. Cannot trigger Amplify job."
+          exit 1
+        fi
+        echo "Starting Amplify build job for branch hemanth..."
+        aws amplify start-job --app-id "$AMPLIFY_APP_ID" --branch-name hemanth --job-type RELEASE
+        echo "Amplify job successfully triggered."
 
     # No packaging of extension needed in this workflow anymore, assuming PS script handles it
     # - name: Package Extension Files

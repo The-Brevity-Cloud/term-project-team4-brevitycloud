@@ -19,3 +19,8 @@ output "amplify_landing_page_url" {
   # Use the default_domain output from the amplify module instance
   value       = "https://${module.amplify_landing_page.default_domain}"
 }
+
+output "amplify_app_id" {
+  description = "Amplify App ID"
+  value       = module.amplify_landing_page.app_id # Assuming your amplify module is named 'amplify_landing_page'
+}
