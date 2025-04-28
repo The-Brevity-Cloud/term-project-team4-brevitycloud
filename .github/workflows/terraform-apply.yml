@@ -29,7 +29,7 @@ jobs:
     # --- Configure AWS credentials based on user input (Reverted to previous structure) ---
     - name: Configure AWS credentials (hemanth)
       if: env.USER == 'hemanth'
-      uses: aws-actions/configure-aws-credentials@v4 # Use v4
+      uses: aws-actions/configure-aws-credentials@v2 # Reverted to v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_HEMANTH }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_HEMANTH }}
@@ -40,7 +40,7 @@ jobs:
 
     - name: Configure AWS credentials (swetha)
       if: env.USER == 'swetha'
-      uses: aws-actions/configure-aws-credentials@v4 # Use v4
+      uses: aws-actions/configure-aws-credentials@v2 # Reverted to v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SWETHA }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SWETHA }}
@@ -51,7 +51,7 @@ jobs:
 
     - name: Configure AWS credentials (sanjeev)
       if: env.USER == 'sanjeev'
-      uses: aws-actions/configure-aws-credentials@v4 # Use v4
+      uses: aws-actions/configure-aws-credentials@v2 # Reverted to v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANJEEV }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANJEEV }}
@@ -62,7 +62,7 @@ jobs:
 
     - name: Configure AWS credentials (sandeep)
       if: env.USER == 'sandeep'
-      uses: aws-actions/configure-aws-credentials@v4 # Use v4
+      uses: aws-actions/configure-aws-credentials@v2 # Reverted to v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANDEEP }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANDEEP }}
@@ -73,7 +73,7 @@ jobs:
 
     - name: Configure AWS credentials (nithikesh)
       if: env.USER == 'nithikesh'
-      uses: aws-actions/configure-aws-credentials@v4 # Use v4
+      uses: aws-actions/configure-aws-credentials@v2 # Reverted to v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_NITHIKESH }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_NITHIKESH }}
