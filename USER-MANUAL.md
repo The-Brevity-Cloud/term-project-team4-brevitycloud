@@ -90,7 +90,7 @@ Prepare Chrome for loading your extension:
   `chrome://extensions/`
 - **Enable Developer Mode** (top-right toggle).
 
-![Architecture Diagram](resources/chrome_developer.png)
+![Chrome Extension](resources/chrome-developer.png)
 
 ---
 
