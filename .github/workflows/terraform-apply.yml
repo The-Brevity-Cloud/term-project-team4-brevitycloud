@@ -70,36 +70,38 @@ jobs:
     # --- End of User-Specific Credential Configuration --- 
 
     - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2 # Use v2
+      # id: login-ecr # ID removed, step moved later
+      uses: aws-actions/amazon-ecr-login@v2
 
     # --- Build, Tag, Push Container Images ---
     - name: Build, tag, and push Rekognition image to Amazon ECR
-      id: build-rekognition-image
+      # id: build-rekognition-image # ID removed, step moved later
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }} # Use Git SHA as image tag
+        IMAGE_TAG: ${{ github.sha }}
+        ECR_REPO_NAME: ${{ env.ECR_REPO_REKOGNITION }}
       run: |
         echo "Building Rekognition image..."
-        docker build -t $ECR_REGISTRY/$ECR_REPO_REKOGNITION:$IMAGE_TAG -f backend/Dockerfile.rekognition backend/
+        docker build -t $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG -f backend/Dockerfile.rekognition backend/
         echo "Pushing Rekognition image..."
-        docker push $ECR_REGISTRY/$ECR_REPO_REKOGNITION:$IMAGE_TAG
-        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPO_REKOGNITION:$IMAGE_TAG"
+        docker push $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG
+        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"
 
     - name: Build, tag, and push Transcribe image to Amazon ECR
-      id: build-transcribe-image
+      # id: build-transcribe-image # ID removed, step moved later
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }} # Use Git SHA as image tag
+        IMAGE_TAG: ${{ github.sha }}
+        ECR_REPO_NAME: ${{ env.ECR_REPO_TRANSCRIBE }}
       run: |
         echo "Building Transcribe image..."
-        docker build -t $ECR_REGISTRY/$ECR_REPO_TRANSCRIBE:$IMAGE_TAG -f backend/Dockerfile.transcribe backend/
+        docker build -t $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG -f backend/Dockerfile.transcribe backend/
         echo "Pushing Transcribe image..."
-        docker push $ECR_REGISTRY/$ECR_REPO_TRANSCRIBE:$IMAGE_TAG
-        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPO_TRANSCRIBE:$IMAGE_TAG"
+        docker push $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG
+        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"
 
     - name: Set up Terraform
-      uses: hashicorp/setup-terraform@v3 # Use v3
+      uses: hashicorp/setup-terraform@v3
 
     # --- Package Lambdas (including new invokers) ---
     - name: Install zip dependency
@@ -126,21 +128,65 @@ jobs:
     # - name: Package Lambda - rekognition ... 
     # - name: Package Lambda - transcribe ...
 
-    # --- Terraform Init & Apply (Pass Image URIs) ---
+    # --- Terraform Init & Apply (ECR Repositories First) ---
     - name: Terraform Init
-      id: init # Add id for potential future use
+      id: init 
       working-directory: infrastructure
       run: |
         terraform init -backend-config="bucket=tf-state-${{ env.USER }}-brevity" \
                         -backend-config="key=${{ env.USER }}/terraform.tfstate" \
                         -backend-config="region=${{ env.AWS_REGION }}"
-                        
-    - name: Terraform Validate # Added validation step
+
+    - name: Terraform Validate # Keep validation early
       id: validate
       working-directory: infrastructure
       run: terraform validate -no-color
+      
+    - name: Terraform Apply (Create ECR Repositories Only)
+      id: apply-ecr
+      working-directory: infrastructure
+      run: |
+        terraform apply -auto-approve -no-color \
+          -target=module.ecr_rekognition \
+          -target=module.ecr_transcribe \
+          -var="user=${{ env.USER }}"
+          # Explicitly set dummy values for image URIs if required by TF plan/apply, even if not used by ECR modules
+          -var="rekognition_image_uri=placeholder" \
+          -var="transcribe_image_uri=placeholder"
 
-    - name: Terraform Plan # Added plan step
+    # --- Build, Tag, Push Container Images (Moved After ECR Creation) ---
+    - name: Login to Amazon ECR # Correct position 
+      id: login-ecr # Correct position
+      uses: aws-actions/amazon-ecr-login@v2 
+
+    - name: Build, tag, and push Rekognition image to Amazon ECR # Correct position
+      id: build-rekognition-image # Correct position
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }} 
+        ECR_REPO_NAME: ${{ env.ECR_REPO_REKOGNITION }}
+      run: |
+        echo "Building Rekognition image..."
+        docker build -t $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG -f backend/Dockerfile.rekognition backend/
+        echo "Pushing Rekognition image..."
+        docker push $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG
+        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"
+
+    - name: Build, tag, and push Transcribe image to Amazon ECR # Correct position
+      id: build-transcribe-image # Correct position
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }} 
+        ECR_REPO_NAME: ${{ env.ECR_REPO_TRANSCRIBE }}
+      run: |
+        echo "Building Transcribe image..."
+        docker build -t $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG -f backend/Dockerfile.transcribe backend/
+        echo "Pushing Transcribe image..."
+        docker push $ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG
+        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPO_NAME:$IMAGE_TAG"
+                        
+    # --- Terraform Plan & Apply (Full Infrastructure) ---
+    - name: Terraform Plan (Full)
       id: plan
       working-directory: infrastructure
       run: |
@@ -149,8 +195,8 @@ jobs:
           -var="rekognition_image_uri=${{ steps.build-rekognition-image.outputs.image }}" \
           -var="transcribe_image_uri=${{ steps.build-transcribe-image.outputs.image }}"
           
-    - name: Terraform Apply
-      id: apply # Add id
+    - name: Terraform Apply (Full)
+      id: apply 
       working-directory: infrastructure
       run: |
         terraform apply -auto-approve -no-color \
