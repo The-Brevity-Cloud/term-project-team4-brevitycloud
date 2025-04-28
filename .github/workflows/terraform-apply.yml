@@ -10,12 +10,6 @@ on:
         description: "Team member identifier (Choose one: hemanth, swetha, sanjeev, sandeep, nithikesh)"
         required: true
 
-permissions: # Added necessary permissions
-  id-token: write # Required for AWS OIDC Authentication / configure-aws-credentials
-  contents: read  # Required to check out the code
-  actions: write  # Required for uploading artifacts
-  packages: write # Required for pushing images to ECR
-
 jobs:
   apply:
     runs-on: ubuntu-latest
@@ -35,10 +29,9 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4 # Use v4
       with:
-        role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/GitHubAction-AssumeRole-${{ env.USER }} # Example OIDC Role naming
-        role-session-name: GitHubAction-${{ github.run_id }}
+        aws-access-key-id: ${{ secrets[format('AWS_ACCESS_KEY_ID_{0}', env.USER)] }}
+        aws-secret-access-key: ${{ secrets[format('AWS_SECRET_ACCESS_KEY_{0}', env.USER)] }}
         aws-region: ${{ env.AWS_REGION }}
-        # Removed individual user keys, assuming OIDC or similar IAM Role per user
 
     - name: Login to Amazon ECR
       id: login-ecr

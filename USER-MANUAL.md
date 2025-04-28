@@ -30,18 +30,19 @@ This document provides detailed instructions on how to set up, configure, deploy
 
 *   **Git:** To clone the repository.
 *   **GitHub Account:** With access to the project repository and permissions to run Actions.
-*   **AWS Account:** With permissions to create the necessary resources (IAM Roles/OIDC, Lambda, API Gateway, Cognito, DynamoDB, S3, Kendra, Bedrock, Rekognition, Transcribe, ECR, ECS, VPC, CloudWatch, etc.).
-*   **AWS CLI:** Installed locally (optional, for manual checks or token generation).
+*   **AWS Account:** With permissions to create the necessary resources (IAM User, Lambda, API Gateway, Cognito, DynamoDB, S3, Kendra, Bedrock, Rekognition, Transcribe, ECR, ECS, VPC, CloudWatch, etc.).
+*   **AWS CLI:** Installed locally (optional, for manual checks or creating initial IAM users).
 *   **Web Browser:** Google Chrome or a Chromium-based browser.
 *   **(Optional) Shell Environment:** Bash (Linux/macOS/WSL) or PowerShell (Windows) for running local scripts (like the extension deployment script or auto-scaling test).
 *   **(Optional) Docker:** Installed locally if you want to build/test container images outside of GitHub Actions.
 
 ## 2. AWS Setup
 
-1.  **AWS Credentials/Role:** The primary deployment method uses GitHub Actions with AWS OIDC authentication. You need to configure an IAM Role that GitHub Actions can assume.
-    *   Create an IAM OIDC identity provider for GitHub.
-    *   Create an IAM Role (e.g., `GitHubAction-AssumeRole-<user>`) with a trust policy allowing your GitHub repository (specifically the `hemanth` branch or workflow triggers) to assume it via OIDC.
-    *   Attach necessary permissions to this role: Terraform state access (S3), permissions to create/manage all resources defined in Terraform (VPC, ECR, ECS, Lambda, API GW, S3, DynamoDB, Cognito, Kendra, Rekognition, Transcribe, Bedrock, CloudWatch, Amplify, IAM roles/policies, etc.), plus `ecr:GetAuthorizationToken`, `ecr:BatchCheckLayerAvailability`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, `ecr:PutImage`, `ecs:RunTask`, `iam:PassRole` (for ECS Task roles), `amplify:StartJob`.
+1.  **IAM User:** Create an IAM User for each team member who will run the deployment workflow (e.g., `hemanth-github-deployer`).
+    *   Navigate to the IAM service in the AWS Console.
+    *   Create a new user.
+    *   Attach necessary permissions to this user: Permissions to create/manage all resources defined in Terraform (VPC, ECR, ECS, Lambda, API GW, S3, DynamoDB, Cognito, Kendra, Rekognition, Transcribe, Bedrock, CloudWatch, Amplify, Secrets Manager read, IAM roles/policies for services, etc.), plus `ecr:GetAuthorizationToken`, `ecr:BatchCheckLayerAvailability`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, `ecr:PutImage`, `ecs:RunTask`, `iam:PassRole` (for ECS Task roles), `amplify:StartJob`.
+    *   **Generate Access Keys:** On the user's security credentials tab, create an Access Key ID and Secret Access Key. **Securely store these keys immediately**, as the secret key is only shown once.
 2.  **Enable AWS Bedrock Model Access:**
     *   Navigate to the AWS Bedrock console in your chosen region (`us-east-1`).
     *   Go to "Model access".
@@ -75,7 +76,10 @@ The primary workflow is defined in `.github/workflows/terraform-apply.yml`. When
 Before running the workflow, ensure the following secrets are configured in your GitHub repository settings (`Settings` > `Secrets and variables` > `Actions`):
 
 *   `AWS_ACCOUNT_ID`: Your 12-digit AWS Account ID.
-*   *(If not using OIDC)* Appropriate AWS access key secrets corresponding to the user inputs (`AWS_ACCESS_KEY_HEMANTH`, `AWS_SECRET_KEY_HEMANTH`, etc. - **Note:** The workflow provided now assumes OIDC).
+*   `AWS_ACCESS_KEY_ID_<USER>`: The AWS Access Key ID for the IAM user corresponding to the `user` input (e.g., `AWS_ACCESS_KEY_ID_hemanth`).
+*   `AWS_SECRET_ACCESS_KEY_<USER>`: The AWS Secret Access Key for the IAM user corresponding to the `user` input (e.g., `AWS_SECRET_ACCESS_KEY_hemanth`).
+
+Replace `<USER>` with the actual team member identifier (`hemanth`, `swetha`, etc.). You need to create separate secrets for each user who will run the workflow.
 
 ### Running the Deployment Workflow
 
@@ -193,7 +197,9 @@ The Transcribe backend is deployed as an ECS Service configured for auto-scaling
 
 ## 7. Troubleshooting
 
-*   **Workflow Failures:** Check the specific step logs in GitHub Actions for errors (Docker push errors, Terraform errors, AWS CLI errors).
+*   **Workflow Failures:** Check the specific step logs in GitHub Actions for errors.
+    *   `Configure AWS Credentials` step: Ensure the correct secrets (`AWS_ACCESS_KEY_ID_<USER>`, `AWS_SECRET_ACCESS_KEY_<USER>`) exist in GitHub secrets and match the `user` input provided to the workflow. Verify the IAM user has the necessary permissions listed in the AWS Setup section.
+    *   Docker push errors, Terraform errors, AWS CLI errors.
 *   **Login/API Errors:** Check API Gateway CloudWatch Logs (`/aws/apigateway/...`) and relevant Lambda logs (`/aws/lambda/...-summarize`, `...-auth`, `...-invoke-rekognition`, `...-invoke-transcribe`, `...-get-result`) for errors.
 *   **Rekognition/Transcribe Failures (No Result):**
     *   Check the corresponding *invoker* Lambda logs first (`...-invoke-rekognition`, `...-invoke-transcribe`) to see if `ecs:RunTask` was called successfully.
