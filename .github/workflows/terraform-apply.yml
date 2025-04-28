@@ -107,6 +107,10 @@ jobs:
     - name: Package Lambda - invoke_transcribe
       working-directory: backend
       run: bash package_invoke_transcribe.sh
+
+    - name: Package Lambda - get_result
+      working-directory: backend
+      run: bash package_get_result.sh
       
     # REMOVED: Old rekognition/transcribe packaging steps
     # - name: Package Lambda - rekognition ... 
