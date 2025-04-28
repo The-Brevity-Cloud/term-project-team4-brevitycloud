@@ -1,7 +1,7 @@
 ---
 # File: .github/workflows/terraform-apply.yml
 
-name: Terraform Apply
+name: Terraform Apply & Deploy Services
 
 on:
   workflow_dispatch:
@@ -10,65 +10,71 @@ on:
         description: "Team member identifier (Choose one: hemanth, swetha, sanjeev, sandeep, nithikesh)"
         required: true
 
+permissions: # Added necessary permissions
+  id-token: write # Required for AWS OIDC Authentication / configure-aws-credentials
+  contents: read  # Required to check out the code
+  actions: write  # Required for uploading artifacts
+  packages: write # Required for pushing images to ECR
+
 jobs:
   apply:
     runs-on: ubuntu-latest
 
     env:
       USER: ${{ github.event.inputs.user }}
+      # Define ECR repo names based on TF structure (can be fetched dynamically but harder pre-TF)
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }} # Need account ID for ECR URI
+      AWS_REGION: us-east-1 # Define region consistently
+      ECR_REPO_REKOGNITION: brevity-cloud-rekognition-service # Matches repo name in main.tf 
+      ECR_REPO_TRANSCRIBE: brevity-cloud-transcribe-service # Matches repo name in main.tf 
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4 # Use v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4 # Use v4
+      with:
+        role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/GitHubAction-AssumeRole-${{ env.USER }} # Example OIDC Role naming
+        role-session-name: GitHubAction-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+        # Removed individual user keys, assuming OIDC or similar IAM Role per user
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2 # Use v2
+
+    # --- Build, Tag, Push Container Images ---
+    - name: Build, tag, and push Rekognition image to Amazon ECR
+      id: build-rekognition-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }} # Use Git SHA as image tag
+      run: |
+        echo "Building Rekognition image..."
+        docker build -t $ECR_REGISTRY/$ECR_REPO_REKOGNITION:$IMAGE_TAG -f backend/Dockerfile.rekognition backend/
+        echo "Pushing Rekognition image..."
+        docker push $ECR_REGISTRY/$ECR_REPO_REKOGNITION:$IMAGE_TAG
+        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPO_REKOGNITION:$IMAGE_TAG"
+
+    - name: Build, tag, and push Transcribe image to Amazon ECR
+      id: build-transcribe-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }} # Use Git SHA as image tag
+      run: |
+        echo "Building Transcribe image..."
+        docker build -t $ECR_REGISTRY/$ECR_REPO_TRANSCRIBE:$IMAGE_TAG -f backend/Dockerfile.transcribe backend/
+        echo "Pushing Transcribe image..."
+        docker push $ECR_REGISTRY/$ECR_REPO_TRANSCRIBE:$IMAGE_TAG
+        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPO_TRANSCRIBE:$IMAGE_TAG"
 
     - name: Set up Terraform
-      uses: hashicorp/setup-terraform@v2
+      uses: hashicorp/setup-terraform@v3 # Use v3
 
-    - name: Configure AWS credentials (hemanth)
-      if: env.USER == 'hemanth'
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_HEMANTH }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_HEMANTH }}
-        aws-region: us-east-1
-
-    - name: Configure AWS credentials (swetha)
-      if: env.USER == 'swetha'
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SWETHA }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SWETHA }}
-        aws-region: us-east-1
-
-    - name: Configure AWS credentials (sanjeev)
-      if: env.USER == 'sanjeev'
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANJEEV }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANJEEV }}
-        aws-region: us-east-1
-
-    - name: Configure AWS credentials (sandeep)
-      if: env.USER == 'sandeep'
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANDEEP }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANDEEP }}
-        aws-region: us-east-1
-
-    - name: Configure AWS credentials (nithikesh)
-      if: env.USER == 'nithikesh'
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_NITHIKESH }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_NITHIKESH }}
-        aws-region: us-east-1
-
-    - name: Install zip and pip dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y zip
-        pip install -r backend/requirements.txt
+    # --- Package Lambdas (including new invokers) ---
+    - name: Install zip dependency
+      run: sudo apt-get update && sudo apt-get install -y zip
 
     - name: Package Lambda - summarize/history
       working-directory: backend
@@ -78,48 +84,79 @@ jobs:
       working-directory: backend
       run: bash package_auth.sh
 
-    - name: Package Lambda - rekognition
+    # NEW: Package invoker lambdas
+    - name: Package Lambda - invoke_rekognition
       working-directory: backend
-      run: bash package_rekognition.sh
+      run: bash package_invoke_rekognition.sh
 
-    - name: Package Lambda - transcribe
+    - name: Package Lambda - invoke_transcribe
       working-directory: backend
-      run: bash package_transcribe.sh
+      run: bash package_invoke_transcribe.sh
+      
+    # REMOVED: Old rekognition/transcribe packaging steps
+    # - name: Package Lambda - rekognition ... 
+    # - name: Package Lambda - transcribe ...
 
-    - name: Terraform Init and Apply
+    # --- Terraform Init & Apply (Pass Image URIs) ---
+    - name: Terraform Init
+      id: init # Add id for potential future use
       working-directory: infrastructure
       run: |
         terraform init -backend-config="bucket=tf-state-${{ env.USER }}-brevity" \
                         -backend-config="key=${{ env.USER }}/terraform.tfstate" \
-                        -backend-config="region=us-east-1"
-        terraform apply -auto-approve -var="user=${{ env.USER }}"
+                        -backend-config="region=${{ env.AWS_REGION }}"
+                        
+    - name: Terraform Validate # Added validation step
+      id: validate
+      working-directory: infrastructure
+      run: terraform validate -no-color
 
-    - name: Export Terraform outputs
-      id: get_outputs
+    - name: Terraform Plan # Added plan step
+      id: plan
       working-directory: infrastructure
       run: |
-        # Extract, filter, and clean the final values for PowerShell script
+        terraform plan -no-color \
+          -var="user=${{ env.USER }}" \
+          -var="rekognition_image_uri=${{ steps.build-rekognition-image.outputs.image }}" \
+          -var="transcribe_image_uri=${{ steps.build-transcribe-image.outputs.image }}"
+          
+    - name: Terraform Apply
+      id: apply # Add id
+      working-directory: infrastructure
+      run: |
+        terraform apply -auto-approve -no-color \
+          -var="user=${{ env.USER }}" \
+          -var="rekognition_image_uri=${{ steps.build-rekognition-image.outputs.image }}" \
+          -var="transcribe_image_uri=${{ steps.build-transcribe-image.outputs.image }}"
+
+    # --- Post-Apply Steps --- 
+    - name: Export Terraform outputs
+      if: steps.apply.outcome == 'success' # Only run on success
+      working-directory: infrastructure
+      run: |
+        # Extract, filter, and clean the final values
         API_ENDPOINT=$(terraform output -raw api_endpoint | tr -d '\r\n"')
         COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id | grep -Eo '^[a-zA-Z0-9]{10,}' | tr -d '\r\n"')
         AMPLIFY_APP_ID=$(terraform output -raw amplify_app_id | tr -d '\r\n"')
-
+        
         echo "Clean API_ENDPOINT: $API_ENDPOINT"
         echo "Clean COGNITO_CLIENT_ID: $COGNITO_CLIENT_ID"
         echo "Clean AMPLIFY_APP_ID: $AMPLIFY_APP_ID"
-
+        
         echo "$API_ENDPOINT" > ../api_endpoint.txt
         echo "$COGNITO_CLIENT_ID" > ../cognito_client_id.txt
-
+        
         # Also extract and print the Amplify URL for information
         AMPLIFY_URL=$(terraform output -raw amplify_landing_page_url | tr -d '\r\n"')
         echo "--------------------------------------------------"
         echo "Amplify Landing Page URL: $AMPLIFY_URL"
         echo "--------------------------------------------------"
 
-        # Set outputs for use in subsequent steps
-        echo "amplify_app_id=$AMPLIFY_APP_ID" >> $GITHUB_OUTPUT
+        # Set Amplify App ID as an environment variable for subsequent steps
+        echo "TF_AMPLIFY_APP_ID=$AMPLIFY_APP_ID" >> $GITHUB_ENV 
 
-    - name: Upload extension config artifact (for PowerShell)
+    - name: Upload extension config artifact
+      if: steps.apply.outcome == 'success'
       uses: actions/upload-artifact@v4
       with:
         name: extension-config
@@ -130,20 +167,14 @@ jobs:
         retention-days: 1
 
     - name: Trigger Amplify Deployment
-      env:
-        AMPLIFY_APP_ID: ${{ steps.get_outputs.outputs.amplify_app_id }}
-        AWS_DEFAULT_REGION: us-east-1
+      if: steps.apply.outcome == 'success'
       run: |
-        if [ -z "$AMPLIFY_APP_ID" ]; then
-          echo "Error: AMPLIFY_APP_ID is not set. Cannot trigger Amplify job."
+        # Check if TF_AMPLIFY_APP_ID is set
+        if [ -z "$TF_AMPLIFY_APP_ID" ]; then
+          echo "Error: TF_AMPLIFY_APP_ID is not set. Cannot trigger Amplify job."
           exit 1
         fi
         echo "Starting Amplify build job for branch hemanth..."
-        aws amplify start-job --app-id "$AMPLIFY_APP_ID" --branch-name hemanth --job-type RELEASE
+        aws amplify start-job --app-id "$TF_AMPLIFY_APP_ID" --branch-name hemanth --job-type RELEASE
         echo "Amplify job successfully triggered."
-
-    # No packaging of extension needed in this workflow anymore, assuming PS script handles it
-    # - name: Package Extension Files
-    #   uses: actions/upload-artifact@v4
-    #   ...
 

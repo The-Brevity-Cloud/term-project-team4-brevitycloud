@@ -19,7 +19,7 @@ variable "github_pat_secret_name" {
 variable "branch_name" {
   description = "Branch to deploy"
   type        = string
-  default     = "amplify"
+  default     = "hemanth"
 }
 
 variable "user_tag" {

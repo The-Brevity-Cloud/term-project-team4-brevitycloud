@@ -1,11 +1,5 @@
 data "aws_caller_identity" "current" {}
 
-# Policy attachment for Transcribe access
-resource "aws_iam_role_policy_attachment" "lambda_transcribe" {
-  role       = var.lambda_role_name
-  policy_arn = var.transcribe_policy_arn
-}
-
 # Note: S3 access policy is assumed to be attached to the shared role in the main lambda module
 # If more specific S3 permissions are needed ONLY for this lambda, define them here
 # resource "aws_iam_role_policy_attachment" "lambda_transcribe_s3" {
@@ -13,33 +7,14 @@ resource "aws_iam_role_policy_attachment" "lambda_transcribe" {
 #   policy_arn = var.s3_policy_arn 
 # }
 
-# Lambda function for Transcribe
-resource "aws_lambda_function" "transcribe_lambda" {
-  filename         = var.transcribe_lambda_zip_path
-  function_name    = "${var.project_name}-transcribe"
-  role             = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.lambda_role_name}"
-  handler          = "transcribe.lambda_handler" # Assuming handler in transcribe.py
-  runtime          = "python3.9"
-  timeout          = 90 # Increased timeout for potential S3 upload + Transcribe job
-  memory_size      = 256
-
-  environment {
-    variables = {
-      S3_BUCKET_NAME = var.s3_bucket_name
-      # Add other env vars if needed, e.g., output bucket for Transcribe jobs
-    }
-  }
-}
-
-# Transcribe Lambda Integration
+# Transcribe Lambda Integration (Points to Invoker Lambda)
 resource "aws_apigatewayv2_integration" "transcribe_lambda_integration" {
   api_id             = var.api_gateway_id
   integration_type   = "AWS_PROXY"
-  integration_uri    = aws_lambda_function.transcribe_lambda.invoke_arn
+  # Use the INVOKER Lambda ARN passed as input
+  integration_uri    = var.invoke_transcribe_lambda_arn 
   integration_method = "POST"
   payload_format_version = "2.0"
-  # Consider increasing timeout if Lambda processing takes longer
-  # timeout_milliseconds = 29000 
 }
 
 # Transcribe Route
@@ -49,11 +24,12 @@ resource "aws_apigatewayv2_route" "transcribe_route" {
   target    = "integrations/${aws_apigatewayv2_integration.transcribe_lambda_integration.id}"
 }
 
-# Transcribe Lambda Permission
-resource "aws_lambda_permission" "transcribe_lambda_permission" {
-  statement_id  = "AllowAPIGatewayInvokeTranscribe"
+# Transcribe Lambda Permission (For Invoker Lambda)
+resource "aws_lambda_permission" "transcribe_invoker_permission" {
+  statement_id  = "AllowAPIGatewayInvokeTranscribeInvoker"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.transcribe_lambda.function_name
+  function_name = var.invoke_transcribe_lambda_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${var.api_gateway_execution_arn}/*/*"
+  # Construct Source ARN from API GW execution ARN and the specific route key
+  source_arn    = "${var.api_gateway_execution_arn}/*/${aws_apigatewayv2_route.transcribe_route.route_key}"
 } 

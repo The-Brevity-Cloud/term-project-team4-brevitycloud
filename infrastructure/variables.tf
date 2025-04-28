@@ -27,3 +27,22 @@ variable "github_pat_secret_name" {
   type        = string
   default     = "Github-PAT" # Use the name confirmed earlier
 }
+
+variable "environment" {
+  description = "Deployment environment (e.g., dev, staging, prod), typically matches user for this project."
+  type        = string
+  default     = "dev" # Default if 'user' variable isn't used for environment directly
+}
+
+# --- Container Image URIs (Passed from CI/CD) ---
+variable "rekognition_image_uri" {
+  description = "ECR image URI for the Rekognition service container (including tag)"
+  type        = string
+  # No default - must be provided by workflow
+}
+
+variable "transcribe_image_uri" {
+  description = "ECR image URI for the Transcribe service container (including tag)"
+  type        = string
+  # No default - must be provided by workflow
+}

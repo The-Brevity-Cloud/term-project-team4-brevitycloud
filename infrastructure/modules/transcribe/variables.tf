@@ -13,18 +13,18 @@ variable "api_gateway_execution_arn" {
   type        = string
 }
 
-variable "lambda_role_name" {
-  description = "Name of the shared Lambda execution role"
-  type        = string
-}
-
-variable "transcribe_lambda_zip_path" {
-  description = "Path to the Transcribe lambda zip file"
-  type        = string
-}
-
 variable "s3_bucket_name" {
   description = "Name of the S3 bucket for temporary audio storage"
+  type        = string
+}
+
+variable "invoke_transcribe_lambda_arn" {
+  description = "ARN of the Lambda function that invokes the Transcribe ECS task"
+  type        = string
+}
+
+variable "invoke_transcribe_lambda_name" {
+  description = "Name of the Lambda function that invokes the Transcribe ECS task"
   type        = string
 }
 

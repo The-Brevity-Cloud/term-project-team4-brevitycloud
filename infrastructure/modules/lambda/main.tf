@@ -34,37 +34,6 @@ resource "aws_iam_role_policy_attachment" "lambda_kendra" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonKendraFullAccess"
 }
 
-# Lambda IAM role to include DynamoDB and Cognito permissions
-resource "aws_iam_role_policy" "lambda_policy" {
-  name = "lambda_policy"
-  role = aws_iam_role.lambda_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:PutItem",
-          "dynamodb:GetItem",
-          "dynamodb:Query",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem"
-        ]
-        Resource = var.dynamodb_table_arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "cognito-idp:AdminInitiateAuth",
-          "cognito-idp:AdminCreateUser"
-        ]
-        Resource = var.cognito_user_pool_arn
-      }
-    ]
-  })
-}
-
 # Lambda function for summarization
 resource "aws_lambda_function" "summarize_lambda" {
   function_name = "${var.project_name}-summarize"
@@ -103,33 +72,177 @@ resource "aws_lambda_function" "auth_lambda" {
   }
 }
 
-# Adding S3 access permissions here, as adding it inside the s3 modules, resulted in a circular dependency error
-resource "aws_iam_policy" "lambda_s3_access" {
-  name        = "${var.project_name}-lambda-s3-access"
-  description = "Allow Lambda to access S3 bucket for webpage content"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:ListBucket",
-          "s3:HeadObject"
-        ]
-        Resource = [
-          var.s3_bucket_arn,
-          "${var.s3_bucket_arn}/*"
-        ]
-      }
-    ]
-  })
+# --- Rekognition Invoker Lambda ---
+resource "aws_lambda_function" "invoke_rekognition" {
+  function_name    = "${var.project_name}-invoke-rekognition"
+  handler          = "invoke_rekognition.lambda_handler" # Assumes filename matches handler prefix
+  runtime          = "python3.9"
+  role             = aws_iam_role.lambda_role.arn
+  filename         = var.rekognition_lambda_zip_path
+  source_code_hash = filebase64sha256(var.rekognition_lambda_zip_path)
+  timeout          = 30 # Adjust timeout as needed
+
+  environment {
+    variables = {
+      ECS_CLUSTER_ARN            = var.ecs_cluster_arn
+      REKOGNITION_TASK_DEF_ARN = var.rekognition_task_def_arn
+      PRIVATE_SUBNET_IDS       = join(",", var.private_subnet_ids) # Pass as comma-separated string
+      TASK_SECURITY_GROUP_ID   = var.task_security_group_id
+      # Add any other env vars needed by the invoker
+    }
+  }
+
+  tags = {
+    Name        = "${var.project_name}-invoke-rekognition-lambda"
+    Project     = var.project_name
+    Environment = var.environment # Assuming environment var exists
+  }
 }
 
-# Attach S3 policy to Lambda role
-resource "aws_iam_role_policy_attachment" "lambda_s3_attachment" {
-  role       = aws_iam_role.lambda_role.name
-  policy_arn = aws_iam_policy.lambda_s3_access.arn
+# --- Transcribe Invoker Lambda ---
+resource "aws_lambda_function" "invoke_transcribe" {
+  function_name    = "${var.project_name}-invoke-transcribe"
+  handler          = "invoke_transcribe.lambda_handler"
+  runtime          = "python3.9"
+  role             = aws_iam_role.lambda_role.arn
+  filename         = var.transcribe_lambda_zip_path
+  source_code_hash = filebase64sha256(var.transcribe_lambda_zip_path)
+  timeout          = 30 # Adjust timeout as needed
+
+  environment {
+    variables = {
+      ECS_CLUSTER_ARN           = var.ecs_cluster_arn
+      TRANSCRIBE_TASK_DEF_ARN = var.transcribe_task_def_arn
+      PRIVATE_SUBNET_IDS      = join(",", var.private_subnet_ids)
+      TASK_SECURITY_GROUP_ID  = var.task_security_group_id
+      # Add any other env vars needed by the invoker
+    }
+  }
+
+  tags = {
+    Name        = "${var.project_name}-invoke-transcribe-lambda"
+    Project     = var.project_name
+    Environment = var.environment
+  }
 }
+
+# --- Get Result Lambda ---
+resource "aws_lambda_function" "get_result" {
+  function_name    = "${var.project_name}-get-result"
+  handler          = "get_result.lambda_handler"
+  runtime          = "python3.9"
+  role             = aws_iam_role.lambda_role.arn # Use the same role
+  filename         = var.get_result_lambda_zip_path
+  source_code_hash = filebase64sha256(var.get_result_lambda_zip_path)
+  timeout          = 15 
+
+  environment {
+    variables = {
+      S3_BUCKET          = var.s3_bucket_name 
+      REKOGNITION_PREFIX = "rekognition-results" # Standardized prefix
+      TRANSCRIBE_PREFIX  = "transcribe-results"  # Standardized prefix
+    }
+  }
+
+  tags = {
+    Name        = "${var.project_name}-get-result-lambda"
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+# --- Update main lambda execution role policy ---
+# Combine existing policies (DynamoDB/Cognito from lambda_policy, S3 from lambda_s3_access)
+# with new ECS permissions into a single policy document.
+data "aws_iam_policy_document" "lambda_combined_policy_doc" {
+  # Source the existing inline policy statements JSON directly
+  # Reconstruct the policy document content here instead of sourcing non-existent resources
+  statement { # DynamoDB Permissions
+    sid    = "DynamoDBPermissions"
+    effect = "Allow"
+    actions = [
+      "dynamodb:PutItem",
+      "dynamodb:GetItem",
+      "dynamodb:Query",
+      "dynamodb:UpdateItem",
+      "dynamodb:DeleteItem"
+    ]
+    resources = [var.dynamodb_table_arn]
+  }
+  statement { # Cognito Permissions
+    sid    = "CognitoPermissions"
+    effect = "Allow"
+    actions = [
+      "cognito-idp:AdminInitiateAuth",
+      "cognito-idp:AdminCreateUser"
+    ]
+    resources = [var.cognito_user_pool_arn]
+  }
+   statement { # S3 Permissions
+    sid = "S3BucketAccess"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:ListBucket",
+      "s3:HeadObject"
+    ]
+    resources = [
+      var.s3_bucket_arn,
+      "${var.s3_bucket_arn}/*"
+    ]
+  }
+  statement { # S3 Permissions for Temp Audio Upload (Invoker)
+      sid = "S3PutTempAudio"
+      actions = ["s3:PutObject"]
+      resources = ["${var.s3_bucket_arn}/temp-audio/*"]
+      effect = "Allow"
+  }
+  statement { # ECS RunTask Permissions
+    sid    = "ECSRunTaskPermissions"
+    effect = "Allow"
+    actions = ["ecs:RunTask"]
+    resources = [
+      var.rekognition_task_def_arn,
+      var.transcribe_task_def_arn
+    ]
+  }
+  statement { # ECS PassRole Permissions
+    sid    = "ECSPassRolePermissions"
+    effect = "Allow"
+    actions = ["iam:PassRole"]
+    resources = [
+      var.ecs_rekognition_task_role_arn,
+      var.ecs_transcribe_task_role_arn,
+      var.ecs_task_execution_role_arn 
+    ]
+  }
+  statement { # Add S3 GetObject for result paths
+    sid    = "S3GetResults"
+    effect = "Allow"
+    actions = ["s3:GetObject"]
+    resources = [
+      "${var.s3_bucket_arn}/rekognition-results/*",
+      "${var.s3_bucket_arn}/transcribe-results/*"
+    ]
+  }
+}
+
+# Create the new combined IAM policy
+resource "aws_iam_policy" "lambda_combined_policy" {
+  name   = "${var.project_name}-lambda-combined-policy"
+  policy = data.aws_iam_policy_document.lambda_combined_policy_doc.json
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+# --- Manage Policy Attachments ---
+# Attach ONLY the NEW combined policy
+resource "aws_iam_role_policy_attachment" "lambda_combined_policy_attachment" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_combined_policy.arn
+}
+
+# Removed old policy/attachment resources

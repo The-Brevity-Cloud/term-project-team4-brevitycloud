@@ -13,13 +13,13 @@ variable "api_gateway_execution_arn" {
   type        = string
 }
 
-variable "lambda_role_name" {
-  description = "Name of the shared Lambda execution role"
+variable "invoke_rekognition_lambda_arn" {
+  description = "ARN of the Lambda function that invokes the Rekognition ECS task"
   type        = string
 }
 
-variable "rekognition_lambda_zip_path" {
-  description = "Path to the Rekognition lambda zip file"
+variable "invoke_rekognition_lambda_name" {
+  description = "Name of the Lambda function that invokes the Rekognition ECS task"
   type        = string
 }
 
