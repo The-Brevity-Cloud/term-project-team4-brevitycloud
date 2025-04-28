@@ -108,12 +108,6 @@ variable "environment" {
   default     = "dev"
 }
 
-# Add env var for the Lambda invoker to know the S3 bucket name
-variable "s3_bucket_name" {
-  description = "Name of the S3 bucket for Lambda interaction"
-  type        = string
-}
-
 # NEW: Path for get_result lambda
 variable "get_result_lambda_zip_path" {
   description = "Path to the get_result Lambda deployment package"
