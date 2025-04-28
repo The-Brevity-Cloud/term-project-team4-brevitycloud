@@ -429,46 +429,45 @@ async function detectTextImage(imageUrl) {
         rekognitionText.value = '';
         hideError(rekognitionError);
 
-        // Retrieve token for authentication if needed by API Gateway (assuming not needed for now)
-        // const { idToken } = await chrome.storage.local.get('idToken'); 
+        // *** Retrieve ID Token for Authorization ***
+        const { idToken } = await chrome.storage.local.get('idToken'); 
+        if (!idToken) {
+            throw new Error("Authentication error: Not logged in or ID token missing.");
+        }
 
         const response = await fetch(`${API_ENDPOINT}/rekognition`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
-                // Add Authorization header if required by API Gateway/Lambda
-                // 'Authorization': `Bearer ${idToken}` 
+                'Accept': 'application/json',
+                // *** Add Authorization header ***
+                'Authorization': `Bearer ${idToken}` 
             },
             body: JSON.stringify({ image_url: imageUrl })
         });
 
-        const data = await response.json();
+        // --- Modify handleRekognitionResponse call location ---
+        // Process the response using the async handler function
+        await handleRekognitionResponse(response); 
 
-        if (response.ok) {
-            rekognitionText.value = data.detected_text || 'No text detected.';
-        } else {
-            throw new Error(data.error || 'Failed to detect text');
-        }
     } catch (error) {
         console.error('Rekognition Error:', error);
         showError(rekognitionError, `Error: ${error.message}`);
         rekognitionText.value = 'Error detecting text.'; // Show error in text area too
-    } finally {
-        rekognitionLoading.style.display = 'none';
+        rekognitionLoading.style.display = 'none'; // Ensure loading hides on error
     }
 }
 
 // Transcribe Audio Function
 async function transcribeAudio(audioBlob) {
     const transcribeLoadingText = "Transcribing audio..."; 
-    const statusElement = document.getElementById('chatLoading'); // Reuse chat loading or create specific one
+    const statusElement = document.getElementById('chatLoading');
     const queryInput = document.getElementById('queryInput');
 
     try {
         statusElement.querySelector('.loading-text').textContent = transcribeLoadingText;
         statusElement.style.display = 'block';
-        micBtn.disabled = true; // Disable mic while transcribing
+        micBtn.disabled = true;
         queryInput.disabled = true;
         queryInput.placeholder = transcribeLoadingText;
 
@@ -477,40 +476,41 @@ async function transcribeAudio(audioBlob) {
         reader.readAsDataURL(audioBlob);
         const base64Audio = await new Promise((resolve, reject) => {
             reader.onloadend = () => {
-                // Remove the data URL prefix (e.g., "data:audio/webm;base64,")
                 const base64String = reader.result.split(',', 2)[1];
                 resolve(base64String);
             };
             reader.onerror = reject;
         });
 
+        // *** Retrieve ID Token for Authorization ***
+        const { idToken } = await chrome.storage.local.get('idToken');
+        if (!idToken) {
+            throw new Error("Authentication error: Not logged in or ID token missing.");
+        }
+
         const response = await fetch(`${API_ENDPOINT}/transcribe`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
-                // Add Authorization header if needed
+                'Accept': 'application/json',
+                 // *** Add Authorization header ***
+                'Authorization': `Bearer ${idToken}`
             },
             body: JSON.stringify({ audio_data: base64Audio })
         });
 
-        const data = await response.json();
+        // --- Modify to use the async handler --- 
+        await handleTranscribeResponse(response); // Assume/create a handler similar to Rekognition's
 
-        if (response.ok) {
-            queryInput.value = data.transcript || ''; // Populate input field
-            console.log("Transcription successful:", data.transcript);
-        } else {
-            throw new Error(data.error || 'Failed to transcribe audio');
-        }
     } catch (error) {
         console.error('Transcription Error:', error);
         alert(`Transcription Error: ${error.message}`);
         queryInput.placeholder = "Error transcribing. Try again.";
-    } finally {
+        // Ensure UI resets on error
         statusElement.style.display = 'none';
         micBtn.disabled = false;
         queryInput.disabled = false;
-        queryInput.placeholder = "Ask a question about this page..."; // Reset placeholder
+        queryInput.placeholder = "Ask a question about this page..."; 
     }
 }
 
@@ -944,18 +944,25 @@ function pollForResult(jobId, type, resultElementId, loadingElementId, statusEle
                 clearInterval(intervalId);
                 if (loadingElementId) hideLoading(loadingElementId);
                 if (statusDiv) statusDiv.textContent = 'Completed.';
-                // Display the result - specific logic might vary
+
                 const resultElement = document.getElementById(resultElementId);
                 if (resultElement) {
                      // Assuming result is plain text, adjust if it's JSON, etc.
                     if (resultElement.tagName === 'TEXTAREA' || resultElement.tagName === 'INPUT') {
                         resultElement.value = data.result || 'No result content found.';
-                    } else {
-                         // Handle display in other elements like divs (e.g., chat)
-                         // This might need more specific handling based on where it's displayed
-                         resultElement.textContent = data.result || 'No result content found.'; 
-                         // If displaying in chat, might need to create a new chat message element
                     }
+                    // *** START: Modified logic for chat/other elements ***
+                    else {
+                         // Check if it's a transcribe result meant for the chat
+                         if (type === 'transcribe' && resultElementId === 'chatResponses') { 
+                            // Append transcript as a new message
+                            displayChatMessage('user', data.result || 'Empty Transcript'); 
+                         } else {
+                            // Original behavior for other types (like rekognition) or different elements
+                            resultElement.textContent = data.result || 'No result content found.';
+                         }
+                    }
+                    // *** END: Modified logic for chat/other elements ***
                 } else {
                     console.error(`Result element with ID ${resultElementId} not found.`);
                 }
@@ -990,23 +997,31 @@ function pollForResult(jobId, type, resultElementId, loadingElementId, statusEle
     intervalId = setInterval(checkStatus, POLLING_INTERVAL_MS);
 }
 
-// --- Modify handleRekognitionResponse (or equivalent logic in context menu handler) ---
-// This function needs to be called from your background.js or content script 
-// where the context menu click is handled.
-// It should receive the API response after calling POST /rekognition.
+// --- Helper function to get token (if not already existing) ---
+async function getToken() {
+    const { idToken } = await chrome.storage.local.get('idToken');
+    if (!idToken) {
+        console.error("Attempted to get token but none found.");
+        // Optionally trigger logout or show login prompt
+        // showAuthContainer(); 
+    }
+    return idToken;
+}
 
+// --- Modify handleRekognitionResponse --- 
+// Make sure this function exists and handles loading indicators
 async function handleRekognitionResponse(response) { 
-    const rekResultTextArea = document.getElementById('rekognition-result'); // Assuming this is the ID
-    const rekLoadingIndicator = document.getElementById('rekognition-loading'); // Assuming an ID
+    // const rekResultTextArea = document.getElementById('rekognitionText'); // Use correct ID
+    const rekLoadingIndicator = document.getElementById('rekognitionLoading');
     const rekStatusDiv = document.getElementById('rekognition-status'); // Optional status element
 
-    if (!rekResultTextArea) {
+    if (!rekognitionText) { // Check the correct element variable
         console.error("Rekognition result text area not found.");
         return;
     }
-    if (rekLoadingIndicator) showLoading(rekLoadingIndicator.id);
-    rekResultTextArea.value = ''; // Clear previous results
-     if (rekStatusDiv) rekStatusDiv.textContent = 'Submitting job...';
+    // Loading indicator should have been shown by detectTextImage
+    // rekognitionText.value = ''; // Clear previous results? Maybe keep old while processing?
+    if (rekStatusDiv) rekStatusDiv.textContent = 'Processing response...';
 
     try {
         if (response.status === 202) { // Check for Accepted status
@@ -1014,158 +1029,117 @@ async function handleRekognitionResponse(response) {
             const jobId = data.jobId; 
             if (jobId) {
                 console.log(`Rekognition job submitted. Job ID: ${jobId}`);
-                rekResultTextArea.value = 'Processing image...'; // Initial feedback
+                rekognitionText.value = 'Processing image...'; // Update feedback
                 if (rekStatusDiv) rekStatusDiv.textContent = 'Processing... (polling)';
-                 // Start polling
-                pollForResult(jobId, 'rekognition', 'rekognition-result', 'rekognition-loading', 'rekognition-status');
+                pollForResult(jobId, 'rekognition', 'rekognitionText', 'rekognitionLoading', 'rekognition-status'); // Use correct resultElementId
             } else {
                 throw new Error("API accepted request but did not return a Job ID.");
             }
         } else if (response.ok) { 
-             // Handle unexpected success (sync response - should not happen now)
+            // Handle unexpected success (sync response)
             const data = await response.json();
-             if (rekLoadingIndicator) hideLoading(rekLoadingIndicator.id);
-             rekResultTextArea.value = data.detected_text || 'No text detected (sync).';
-             if (rekStatusDiv) rekStatusDiv.textContent = 'Completed (sync).';
+            if (rekLoadingIndicator) hideLoading(rekLoadingIndicator.id); // Correct function call
+            rekognitionText.value = data.detected_text || 'No text detected (sync).';
+            if (rekStatusDiv) rekStatusDiv.textContent = 'Completed (sync).';
         } else {
-             // Handle API error (4xx, 5xx) from the initial request
-            const errorData = await response.json().catch(() => ({ error: "Failed to parse error response." }));
+            // Handle API error (4xx, 5xx) from the initial request
+            const errorData = await response.json().catch(() => ({ error: `API Error ${response.status}` }));
             throw new Error(errorData.error || `API Error: ${response.status}`);
         }
     } catch (error) {
         console.error('Error handling rekognition response:', error);
-         if (rekLoadingIndicator) hideLoading(rekLoadingIndicator.id);
-        displayError(`Error submitting Rekognition job: ${error.message}`, 'rekognition-result'); // Display error in the text area
+        if (rekLoadingIndicator) hideLoading(rekLoadingIndicator.id); // Correct function call
+        // Display error in the text area
+        showError(rekognitionError, `Error: ${error.message}`); 
+        rekognitionText.value = `Error: ${error.message}`; // Also put in text area
         if (rekStatusDiv) rekStatusDiv.textContent = 'Error.';
     }
 }
 
+// --- Create handleTranscribeResponse (Mirroring Rekognition's) ---
+async function handleTranscribeResponse(response) {
+    const statusElement = document.getElementById('chatLoading'); 
+    const queryInput = document.getElementById('queryInput');
+    const transcribeStatusElementId = 'transcribe-status'; // Optional status element ID
+    const transcribeResultTargetElementId = 'chatResponses'; // Target the div where responses appear
 
-// --- Modify handleVoiceInput / sendToAPI (or where POST /transcribe is called) ---
-
-// Example modification within an existing function that calls the API:
-async function someFunctionThatCallsTranscribe(base64Audio) {
-    // ... (show loading indicator for chat/transcribe) ...
-    const transcribeResultTargetElementId = 'chat-output'; // Or wherever transcript appears
-    const transcribeLoadingElementId = 'transcribe-loading'; // Or chat loading indicator
-    const transcribeStatusElementId = 'transcribe-status'; // Optional
-
-     if (document.getElementById(transcribeLoadingElementId)) {
-        showLoading(transcribeLoadingElementId);
-     }
-      // Display initial status
-     displayChatMessage('system', 'Submitting audio for transcription...');
+    if (document.getElementById(transcribeStatusElementId)) {
+         document.getElementById(transcribeStatusElementId).textContent = 'Processing response...';
+    }
 
     try {
-        const token = await getToken();
-        if (!token) {
-            displayError("Authentication error.", transcribeResultTargetElementId);
-             if (document.getElementById(transcribeLoadingElementId)) hideLoading(transcribeLoadingElementId);
-            return;
-        }
-
-        const response = await fetch(`${API_ENDPOINT}/transcribe`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ audio_data: base64Audio })
-        });
-
         if (response.status === 202) { // Check for Accepted status
             const data = await response.json();
-            const jobName = data.jobName; // Note: Invoker returns jobName
+            const jobName = data.jobName; 
             if (jobName) {
                 console.log(`Transcribe job submitted. Job Name: ${jobName}`);
-                 displayChatMessage('system', 'Audio submitted. Processing transcript...');
-                 // Start polling, update chat on completion
-                 pollForResult(jobName, 'transcribe', transcribeResultTargetElementId, transcribeLoadingElementId, transcribeStatusElementId); 
-                 // Note: pollForResult currently sets textContent. You'll need to adapt it 
-                 // or its completion logic to *append* a new chat message instead of replacing 
-                 // the content of 'chat-output'. This requires more specific changes 
-                 // based on how your chat messages are structured and added.
-                 // For now, it will replace the content.
+                displayChatMessage('system', 'Audio submitted. Processing transcript...');
+                // Start polling, ADAPT COMPLETION LOGIC for chat
+                pollForResult(jobName, 'transcribe', transcribeResultTargetElementId, 'chatLoading', transcribeStatusElementId);
             } else {
                 throw new Error("API accepted request but did not return a Job Name.");
             }
         } else if (response.ok) {
-             // Handle unexpected sync success
+            // Handle unexpected sync success
             const data = await response.json();
-             if (document.getElementById(transcribeLoadingElementId)) hideLoading(transcribeLoadingElementId);
-             displayChatMessage('system', `Transcript (sync): ${data.transcript || 'Empty'}`);
+            if (statusElement) statusElement.style.display = 'none';
+            micBtn.disabled = false;
+            queryInput.disabled = false;
+            queryInput.value = data.transcript || ''; // Populate input field on sync success
+            queryInput.placeholder = "Ask a question about this page..."; 
+            displayChatMessage('system', `Transcript (sync): ${data.transcript || 'Empty'}`);
         } else {
-             // Handle API error
-             const errorData = await response.json().catch(() => ({ error: "Failed to parse error response." }));
-             throw new Error(errorData.error || `API Error: ${response.status}`);
+            // Handle API error
+            const errorData = await response.json().catch(() => ({ error: `API Error ${response.status}` }));
+            throw new Error(errorData.error || `API Error: ${response.status}`);
         }
-
     } catch (error) {
-        console.error('Error sending audio for transcription:', error);
-        displayError(`Transcription submission failed: ${error.message}`, transcribeResultTargetElementId);
-        if (document.getElementById(transcribeLoadingElementId)) hideLoading(transcribeLoadingElementId);
-         // Display error in chat
-         displayChatMessage('system', `Error: ${error.message}`);
+        console.error('Error handling transcribe response:', error);
+        if (statusElement) statusElement.style.display = 'none';
+        micBtn.disabled = false;
+        queryInput.disabled = false;
+        queryInput.placeholder = "Ask a question about this page..."; 
+        displayChatMessage('system', `Error: ${error.message}`); // Display error in chat
     }
 }
 
-// --- Ensure displayChatMessage exists and works as expected ---
-// function displayChatMessage(sender, message) { ... } 
+// --- Helper function displayChatMessage (ensure it exists) ---
+function displayChatMessage(sender, message) {
+    const responsesDiv = document.getElementById('chatResponses');
+    if (!responsesDiv) return;
 
-// --- Ensure displayError handles target element ID ---
-// function displayError(message, targetElementId) { ... }
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('chat-message', sender === 'user' ? 'user-message' : 'system-message'); 
+    
+    // Basic formatting (can be enhanced)
+    const contentElement = document.createElement('p');
+    contentElement.textContent = message;
+    messageElement.appendChild(contentElement);
+    
+    responsesDiv.appendChild(messageElement);
+    messageElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
 
-// --- Ensure getToken() is available and works ---
-// async function getToken() { ... }
-
-// --- NOTE ---
-// The call to handleRekognitionResponse needs to be integrated into your context menu logic.
-// Find where you currently call POST /rekognition in background.js or content.js 
-// and instead, pass the response object to this handleRekognitionResponse function
-// (you might need to use chrome.runtime.sendMessage to pass the response data 
-// from the background script to the sidepanel script).
-
-// Example (Conceptual - in background.js context menu onClicked handler):
-// chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-//   if (info.menuItemId === "detectTextRekognition") {
-//     const imageUrl = info.srcUrl;
-//     // Show side panel if not open?
-//     // ...
-//     try {
-//        const token = await getTokenFromStorage(); // Get token
-//        const response = await fetch(`${API_ENDPOINT}/rekognition`, { /* ... options ... */ });
-//        
-//        // Send response status and body to sidepanel for processing
-//        chrome.runtime.sendMessage({ 
-//            action: "rekognitionResponse", 
-//            status: response.status, 
-//            body: await response.json().catch(() => null) // Send parsed body or null
-//        }); 
-//
-//     } catch (error) {
-//        chrome.runtime.sendMessage({ action: "rekognitionResponse", error: error.message });
-//     }
-//   }
-// });
-
-// Example (Conceptual - in sidepanel.js):
-// chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-//    if (message.action === "rekognitionResponse") {
-//       if (message.error) {
-//          displayError(message.error, 'rekognition-result');
-//       } else {
-//          // Reconstruct a response-like object to pass to the handler
-//          const mockResponse = {
-//             status: message.status,
-//             json: async () => message.body, // Function that returns the parsed body
-//             ok: message.status >= 200 && message.status < 300
-//          };
-//          handleRekognitionResponse(mockResponse); 
-//       }
-//    }
-// });
-
-// You'll need to adapt the conceptual examples above to your exact implementation.
+// --- Helper function displayError (ensure it exists and handles element ID) ---
+function displayError(message, targetElementId) {
+    const element = document.getElementById(targetElementId);
+    if (element) {
+         // Check if it's an error display element or a general output area
+         if (element.classList.contains('error-message')) {
+             element.textContent = message;
+             element.style.display = 'block';
+         } else if (element.tagName === 'TEXTAREA' || element.tagName === 'INPUT') {
+             element.value = `Error: ${message}`; // Show error in input/textarea
+         } else {
+             // For general divs like chat output, perhaps append an error message
+             displayChatMessage('system', `Error: ${message}`); 
+         }
+    } else {
+         // Fallback alert if target element not found
+         console.error(`Target element ${targetElementId} not found for error: ${message}`);
+         // alert(`Error: ${message}`); 
+    }
+}
 
 
 
