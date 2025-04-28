@@ -1,8 +1,8 @@
 // API Configuration
-const API_ENDPOINT = 'https://w7jhwtbzg2.execute-api.us-east-1.amazonaws.com/prod';
+const API_ENDPOINT = 'https://8iursjoura.execute-api.us-east-1.amazonaws.com/prod';
 const AUTH_ENDPOINT = `${API_ENDPOINT}/auth`;
 const SUMMARIZE_ENDPOINT = `${API_ENDPOINT}/summarize`;
-const COGNITO_CLIENT_ID = '2cjrkd09sl4mr1uubs33kn1o0s';
+const COGNITO_CLIENT_ID = '6q5f9a8acm1lcotiebj8i2fg9e';
 
 // UI Elements
 const authContainer = document.getElementById('authContainer');
@@ -1166,6 +1166,7 @@ async function someFunctionThatCallsTranscribe(base64Audio) {
 // });
 
 // You'll need to adapt the conceptual examples above to your exact implementation.
+
 
 
 

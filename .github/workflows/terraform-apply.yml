@@ -258,7 +258,8 @@ jobs:
           echo "Error: TF_AMPLIFY_APP_ID is not set. Cannot trigger Amplify job."
           exit 1
         fi
-        echo "Starting Amplify build job for branch hemanth..."
-        aws amplify start-job --app-id "$TF_AMPLIFY_APP_ID" --branch-name hemanth --job-type RELEASE
+        BRANCH_TO_DEPLOY=${{ github.ref_name }}
+        echo "Starting Amplify build job for branch $BRANCH_TO_DEPLOY..."
+        aws amplify start-job --app-id "$TF_AMPLIFY_APP_ID" --branch-name "$BRANCH_TO_DEPLOY" --job-type RELEASE
         echo "Amplify job successfully triggered."
 

@@ -61,6 +61,31 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_NITHIKESH }}
         aws-region: us-east-1
 
+    # --- Add Lambda Packaging Steps --- 
+    - name: Install zip dependency
+      run: sudo apt-get update && sudo apt-get install -y zip
+
+    - name: Package Lambda - summarize/history
+      working-directory: backend
+      run: bash package.sh
+
+    - name: Package Lambda - auth
+      working-directory: backend
+      run: bash package_auth.sh
+
+    - name: Package Lambda - invoke_rekognition
+      working-directory: backend
+      run: bash package_invoke_rekognition.sh
+
+    - name: Package Lambda - invoke_transcribe
+      working-directory: backend
+      run: bash package_invoke_transcribe.sh
+
+    - name: Package Lambda - get_result
+      working-directory: backend
+      run: bash package_get_result.sh
+    # --- End Lambda Packaging Steps ---
+
     - name: Terraform Init and Destroy
       working-directory: infrastructure
       run: |
