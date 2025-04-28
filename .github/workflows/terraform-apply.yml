@@ -175,9 +175,18 @@ jobs:
           -var="transcribe_image_uri=placeholder"
 
     # --- Build, Tag, Push Container Images (Moved After ECR Creation) ---
-    - name: Login to Amazon ECR # Correct position 
+    - name: Login to Amazon ECR # Correct position & Explicit Credentials
       id: login-ecr # Correct position
-      uses: aws-actions/amazon-ecr-login@v2 
+      uses: aws-actions/amazon-ecr-login@v2
+      with: # Explicitly pass credentials 
+        aws-access-key-id: ${{ secrets[format('AWS_ACCESS_KEY_ID_{0}', env.USER)] }}
+        aws-secret-access-key: ${{ secrets[format('AWS_SECRET_ACCESS_KEY_{0}', env.USER)] }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Debug ECR Login Output
+      run: |
+        echo "ECR Registry Output: ${{ steps.login-ecr.outputs.registry }}"
+        echo "ECR Login Step Outcome: ${{ steps.login-ecr.outcome }}"
 
     - name: Build, tag, and push Rekognition image to Amazon ECR # Correct position
       id: build-rekognition-image # Correct position
