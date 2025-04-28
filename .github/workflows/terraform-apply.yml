@@ -34,6 +34,9 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_HEMANTH }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_HEMANTH }}
         aws-region: ${{ env.AWS_REGION }}
+    - name: Verify AWS Credentials (hemanth)
+      if: env.USER == 'hemanth'
+      run: aws sts get-caller-identity
 
     - name: Configure AWS credentials (swetha)
       if: env.USER == 'swetha'
@@ -42,6 +45,9 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SWETHA }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SWETHA }}
         aws-region: ${{ env.AWS_REGION }}
+    - name: Verify AWS Credentials (swetha)
+      if: env.USER == 'swetha'
+      run: aws sts get-caller-identity
 
     - name: Configure AWS credentials (sanjeev)
       if: env.USER == 'sanjeev'
@@ -50,6 +56,9 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANJEEV }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANJEEV }}
         aws-region: ${{ env.AWS_REGION }}
+    - name: Verify AWS Credentials (sanjeev)
+      if: env.USER == 'sanjeev'
+      run: aws sts get-caller-identity
 
     - name: Configure AWS credentials (sandeep)
       if: env.USER == 'sandeep'
@@ -58,6 +67,9 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANDEEP }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANDEEP }}
         aws-region: ${{ env.AWS_REGION }}
+    - name: Verify AWS Credentials (sandeep)
+      if: env.USER == 'sandeep'
+      run: aws sts get-caller-identity
 
     - name: Configure AWS credentials (nithikesh)
       if: env.USER == 'nithikesh'
@@ -66,6 +78,9 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_NITHIKESH }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_NITHIKESH }}
         aws-region: ${{ env.AWS_REGION }}
+    - name: Verify AWS Credentials (nithikesh)
+      if: env.USER == 'nithikesh'
+      run: aws sts get-caller-identity
 
     # --- End of User-Specific Credential Configuration --- 
 
