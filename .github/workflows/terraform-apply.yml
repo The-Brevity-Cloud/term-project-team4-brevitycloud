@@ -73,6 +73,11 @@ jobs:
       # id: login-ecr # ID removed, step moved later
       uses: aws-actions/amazon-ecr-login@v2
 
+    - name: Debug ECR Login Output
+      run: |
+        echo "ECR Registry Output: ${{ steps.login-ecr.outputs.registry }}"
+        echo "ECR Login Step Outcome: ${{ steps.login-ecr.outcome }}"
+
     # --- Build, Tag, Push Container Images ---
     - name: Build, tag, and push Rekognition image to Amazon ECR
       # id: build-rekognition-image # ID removed, step moved later
