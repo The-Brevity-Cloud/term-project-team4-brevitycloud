@@ -75,7 +75,7 @@ module "api_gateway" {
   get_result_lambda_name      = module.lambda.get_result_lambda_name
 
   # Pass Cognito info for authorizer
-  cognito_client_id  = module.cognito.user_pool_client_id
+  cognito_client_id  = module.cognito.cognito_client_id
   cognito_issuer_url = module.cognito.user_pool_issuer_url
 
   # Pass Rekognition invoker lambda info
