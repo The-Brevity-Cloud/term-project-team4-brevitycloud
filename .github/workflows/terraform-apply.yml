@@ -294,10 +294,12 @@ jobs:
         echo "$API_ENDPOINT" > ../api_endpoint.txt
         echo "$COGNITO_CLIENT_ID" > ../cognito_client_id.txt
         
-        # Also extract and print the Amplify URL for information
-        AMPLIFY_URL=$(terraform output -raw amplify_landing_page_url | tr -d '\r\n"')
+        # Construct the correct branch-specific Amplify URL
+        # Note: BRANCH_TO_DEPLOY is set in the next step, but we use github.ref_name here
+        # which should be the same branch for the apply workflow context.
+        CORRECT_AMPLIFY_URL="https://${{ github.ref_name }}.$AMPLIFY_APP_ID.amplifyapp.com"
         echo "--------------------------------------------------"
-        echo "Amplify Landing Page URL: $AMPLIFY_URL"
+        echo "Amplify Landing Page URL: $CORRECT_AMPLIFY_URL"
         echo "--------------------------------------------------"
 
         # Set Amplify App ID as an environment variable for subsequent steps

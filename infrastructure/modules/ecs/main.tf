@@ -85,10 +85,11 @@ resource "aws_ecs_task_definition" "transcribe" {
       name      = "transcribe-container"
       image     = var.transcribe_image_uri
       essential = true
-      # Pass S3 bucket needed by the container
+      # Pass S3 bucket needed by the container, define others expected by override
       environment = [
-        { name = "S3_BUCKET", value = var.s3_bucket_name } # Get bucket NAME
-        # Other necessary env vars like S3_KEY, JOB_NAME are passed via RunTask overrides
+        { name = "S3_BUCKET", value = var.s3_bucket_name },
+        { name = "S3_KEY",    value = "" }, # Placeholder, overridden by Lambda
+        { name = "JOB_NAME",  value = "" }  # Placeholder, overridden by Lambda
       ]
       logConfiguration = {
         logDriver = "awslogs"

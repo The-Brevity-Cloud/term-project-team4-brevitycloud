@@ -63,14 +63,28 @@ module "lambda" {
 }
 
 module "api_gateway" {
-  source                    = "./modules/api_gateway"
-  project_name              = var.project_name
+  source                      = "./modules/api_gateway"
+  project_name                = var.project_name
+
+  # Existing lambda integrations
   summarize_lambda_invoke_arn = module.lambda.summarize_lambda_invoke_arn
-  auth_lambda_invoke_arn    = module.lambda.auth_lambda_invoke_arn
-  summarize_lambda_name     = module.lambda.summarize_lambda_name
-  auth_lambda_name          = module.lambda.auth_lambda_name
-  get_result_lambda_invoke_arn = module.lambda.get_result_lambda_arn
-  get_result_lambda_name     = module.lambda.get_result_lambda_name
+  summarize_lambda_name       = module.lambda.summarize_lambda_name
+  auth_lambda_invoke_arn      = module.lambda.auth_lambda_invoke_arn
+  auth_lambda_name            = module.lambda.auth_lambda_name
+  get_result_lambda_invoke_arn = module.lambda.get_result_lambda_invoke_arn
+  get_result_lambda_name      = module.lambda.get_result_lambda_name
+
+  # Pass Cognito info for authorizer
+  cognito_client_id  = module.cognito.user_pool_client_id
+  cognito_issuer_url = module.cognito.user_pool_issuer_url
+
+  # Pass Rekognition invoker lambda info
+  invoke_rekognition_lambda_invoke_arn = module.lambda.invoke_rekognition_lambda_invoke_arn
+  invoke_rekognition_lambda_name       = module.lambda.invoke_rekognition_lambda_name
+
+  # Pass Transcribe invoker lambda info
+  invoke_transcribe_lambda_invoke_arn = module.lambda.invoke_transcribe_lambda_invoke_arn
+  invoke_transcribe_lambda_name       = module.lambda.invoke_transcribe_lambda_name
 }
 
 module "rekognition" {
