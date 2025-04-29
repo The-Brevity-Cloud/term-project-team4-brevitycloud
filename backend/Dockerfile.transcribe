@@ -11,8 +11,9 @@ COPY requirements.txt .
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the transcribe script into the container at /app
+# Copy the application scripts into the container at /app
 COPY transcribe.py .
+COPY logger.py .
 
 # Define environment variable placeholders
 ENV S3_BUCKET=""

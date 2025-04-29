@@ -1,8 +1,8 @@
 // API Configuration
-const API_ENDPOINT = 'https://8iursjoura.execute-api.us-east-1.amazonaws.com/prod';
+const API_ENDPOINT = 'https://nejd7t3ri4.execute-api.us-east-1.amazonaws.com/prod';
 const AUTH_ENDPOINT = `${API_ENDPOINT}/auth`;
 const SUMMARIZE_ENDPOINT = `${API_ENDPOINT}/summarize`;
-const COGNITO_CLIENT_ID = '6q5f9a8acm1lcotiebj8i2fg9e';
+const COGNITO_CLIENT_ID = '1bd952tr20g2t01n8tbj7julfm';
 
 // UI Elements
 const authContainer = document.getElementById('authContainer');
@@ -1140,6 +1140,7 @@ function displayError(message, targetElementId) {
          // alert(`Error: ${message}`); 
     }
 }
+
 
 
 
