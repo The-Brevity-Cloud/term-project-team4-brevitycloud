@@ -4,19 +4,11 @@ This document provides detailed instructions on how to set up, configure, deploy
 
 ## Table of Contents
 
-<<<<<<< HEAD
-1.  [Prerequisites](#prerequisites)
-2.  [AWS Setup](#aws-setup)
-3.  [Backend Deployment (Automated)](#backend-deployment-automated)
-4.  [Backend Deployment (Automated)](#backend-deployment-terraform)
-5.  [Usage Scenarios](#usage-scenarios)
-=======
 1.  [Prerequisites (AWS Account & IAM User Setup)](#1-prerequisites-aws-account--iam-user-setup)
 2.  [Prerequisites (GitHub Setup)](#2-prerequisites-github-setup)
 3.  [Deployment (GitHub Actions Workflow)](#3-deployment-github-actions-workflow)
 4.  [Frontend Setup (Local Extension Configuration)](#4-frontend-setup-local-extension-configuration)
 5.  [Using the Application](#5-using-the-application)
->>>>>>> hemanth
     *   [Registration & Login](#registration--login)
     *   [Summarizing a Webpage](#summarizing-a-webpage)
     *   [Chatting with Page Context](#chatting-with-page-context)
@@ -25,15 +17,10 @@ This document provides detailed instructions on how to set up, configure, deploy
     *   [Viewing History](#viewing-history)
     *   [Viewing Landing Page](#viewing-landing-page)
     *   [Logging Out](#logging-out)
-<<<<<<< HEAD
-6.  [Troubleshooting](#troubleshooting)
-7.  [Development Notes](#development-notes)
-=======
 6.  [Testing Auto-Scaling](#6-testing-auto-scaling)
 7.  [Troubleshooting](#7-troubleshooting)
 8.  [Teardown (Destroy Workflow & Manual Cleanup)](#8-teardown-destroy-workflow--manual-cleanup)
 9.  [Development Notes](#9-development-notes)
->>>>>>> hemanth
 
 ---
 
@@ -94,119 +81,37 @@ These steps need to be performed **once per AWS account** that will be used for 
 
 ## 2. Prerequisites (GitHub Setup)
 
-<<<<<<< HEAD
-# 3. BrevityCloud Deployment Instructions (Automated Setup)
-
-Follow these steps to automatically deploy your infrastructure and update the Chrome extension.
-
----
-
-## 3.1 GitHub Secrets Setup
-
-Set your AWS credentials securely under GitHub Secrets:
-
-- **AWS_ACCESS_KEY_{FIRSTNAME}** → Your AWS Access Key ID
-- **AWS_SECRET_KEY_{FIRSTNAME}** → Your AWS Secret Access Key
-
-All in **UPPERCASE** for secret names.
-
-**Example:**
-- For Professor Michael:  
-  - `AWS_ACCESS_KEY_MICHAEL`
-  - `AWS_SECRET_KEY_MICHAEL`
-- For TA Shireen:  
-  - `AWS_ACCESS_KEY_SHIREEN`
-  - `AWS_SECRET_KEY_SHIREEN`
-- For TA Peyton:  
-  - `AWS_ACCESS_KEY_PEYTON`
-  - `AWS_SECRET_KEY_PEYTON`
-
----
-
-## 3.2 Deploy Infrastructure via GitHub Actions
-
-- Navigate to **GitHub → Actions → Terraform Apply**.
-- Click **"Run workflow"**.
-- Enter **your first name in lowercase** (e.g., `michael`, `shireen`, `peyton`).
-- Sit back and relax — deployment will complete in about **5 minutes**.
-
----
-
-## 3.3 Enable Developer Mode on Chrome (Please use on default chrome account)
-
-Prepare Chrome for loading your extension:
-
-- Open Chrome and go to:  
-  `chrome://extensions/`
-- **Enable Developer Mode** (top-right toggle).
-
-![Chrome Extension](resources/chrome-developer.png)
-
----
-
-## 3.4 Load the Extension (First Time Only)
-
-Because Chrome restricts auto-creating extensions:
-
-1. In `chrome://extensions/`, click **"Load unpacked"** (top-left).
-2. Select the `/extension` folder from the project.
-3. The extension will appear in your list.
-
-> _Note: You only need to load manually once._
-
----
-
-## 3.5 Sync Latest Endpoints & Reload Extension
-
-Once infrastructure is deployed (From project's root directory):
-
-- On **Mac/Linux**, run:
-  ```bash
-  bash deploy.sh
-
-- On **Windows**, run:
-  ```powershell
-  .\deployment.ps1
-
-The app should be up and running
-
-## 3.6 Destory Resources and Spin down Infrastructure
-
-- Navigate to **GitHub → Actions → Terraform Destroy**.
-- Click **"Run workflow"**.
-- Enter **your first name in lowercase (Same name you used for apply)** (e.g., `michael`, `shireen`, `peyton`).
-- Please give some time for deployment to complete In average it takes **25-30 minutes**.
-
-
-# 3. BrevityCloud Deployment Instructions (Manual/Local Setup)
-
-## 4.1 Backend Deployment (Terraform)
-=======
 1.  **GitHub Account:** Ensure you have a GitHub account.
 2.  **Repository Access:** Be added as a collaborator to the `The-Brevity-Cloud/term-project-team4-brevitycloud` repository.
-3.  **Configure GitHub Secrets:**
-    *   Navigate to the repository on GitHub.
+3.  **Create GitHub Personal Access Token (PAT):** This token is needed for Amplify to access the repository code during deployment. You'll store this token in AWS Secrets Manager (see Section 1.5).
+    *   Go to your GitHub **Settings**.
+    *   In the left sidebar, scroll down and click **Developer settings**.
+    *   Click **Personal access tokens** -> **Tokens (classic)**.
+    *   Click **Generate new token** -> **Generate new token (classic)**.
+    *   Give the token a descriptive **Note** (e.g., `brevitycloud-amplify-deploy`).
+    *   Set the **Expiration** (e.g., 30 days, 90 days, or custom).
+    *   Under **Select scopes**, check the box next to **`repo`** (Full control of private repositories). *No other scopes are needed.*
+    *   Scroll down and click **Generate token**.
+    *   **CRITICAL:** Immediately copy the generated token string. Store it securely, as you won't be able to see it again after leaving the page. You will paste this value into AWS Secrets Manager in step 1.5.
+4.  **Configure GitHub Secrets:**
+    *   Navigate to the repository on GitHub (`The-Brevity-Cloud/term-project-team4-brevitycloud`).
     *   Go to `Settings` > `Secrets and variables` > `Actions`.
     *   Click **New repository secret** for each of the following:
         *   `AWS_ACCOUNT_ID`: Enter your 12-digit AWS Account ID.
         *   `AWS_ACCESS_KEY_<YOUR_NAME_UPPERCASE>`: Enter the Access Key ID generated for your IAM User (e.g., for user `michael`, the secret name is `AWS_ACCESS_KEY_MICHAEL`).
         *   `AWS_SECRET_KEY_<YOUR_NAME_UPPERCASE>`: Enter the Secret Access Key generated for your IAM User (e.g., for user `michael`, the secret name is `AWS_SECRET_KEY_MICHAEL`).
->>>>>>> hemanth
 
 ## 3. Deployment (GitHub Actions Workflow)
 
 This workflow deploys the entire backend infrastructure, Docker services, and the landing page.
 
-<<<<<<< HEAD
-## 4.2 Packaging Lambda Functions
-=======
 1.  **Navigate to Actions:** Go to the **Actions** tab in the GitHub repository.
-2.  **Select Workflow:** Find the **\"Terraform Apply & Deploy Services\"** workflow in the list.
+2.  **Select Workflow:** Find the **"Terraform Apply & Deploy Services"** workflow in the list.
 3.  **Run Workflow:**
-    *   Click the **\"Run workflow\"** dropdown button.
+    *   Click the **"Run workflow"** dropdown button.
     *   Ensure the correct branch is selected (usually `main` for final deployment/grading, or `hemanth` for development).
-    *   In the **\"Team member identifier\"** input box, enter your **lowercase** first name (e.g., `michael`, `shireen`, `peyton`, `hemanth`). This **must** match the suffix used in your GitHub secret names (but in lowercase).
-    *   Click the green **\"Run workflow\"** button.
+    *   In the **"Team member identifier"** input box, enter your **lowercase** first name (e.g., `michael`, `shireen`, `peyton`, `hemanth`). This **must** match the suffix used in your GitHub secret names (but in lowercase).
+    *   Click the green **"Run workflow"** button.
 4.  **Monitor:** Observe the workflow progress in the Actions tab. It performs the following key steps:
     *   Checks out code from the selected branch.
     *   Configures AWS credentials using the secrets matching your input name.
@@ -220,75 +125,29 @@ This workflow deploys the entire backend infrastructure, Docker services, and th
     *   Exports API endpoint and Cognito Client ID.
     *   Uploads configuration as an artifact.
     *   Triggers an Amplify deployment using the code from the current branch.
->>>>>>> hemanth
 
 ## 4. Frontend Setup (Local Extension Configuration)
 
 These steps configure the locally cloned Chrome extension to communicate with the deployed backend.
 
-1.  **Download Artifact:** Once the \"Terraform Apply & Deploy Services\" workflow completes successfully, navigate to the workflow run summary page.
+1.  **Download Artifact:** Once the "Terraform Apply & Deploy Services" workflow completes successfully, navigate to the workflow run summary page.
 2.  Scroll down to **Artifacts** and download the `extension-config` artifact (it will be a zip file).
 3.  **Extract Files:** Extract the contents (`api_endpoint.txt`, `cognito_client_id.txt`) into the root directory of your locally cloned repository, overwriting if they exist.
 4.  **Run Deployment Script:**
-    *   **Windows:** Open PowerShell in the repository root and run: `.\\deployment.ps1`
+    *   **Windows:** Open PowerShell in the repository root and run: `.\deployment.ps1`
     *   **macOS/Linux:** Open Terminal in the repository root and run: `bash deploy.sh`
     *   This script reads the `.txt` files and injects the values into `extension/sidepanel.js`.
 5.  **Load Extension in Chrome:**
     *   Open Google Chrome.
     *   Navigate to `chrome://extensions/`.
     *   Ensure **Developer mode** (top-right toggle) is **enabled**.
-    *   Click **\"Load unpacked\"**.
+    *   Click **"Load unpacked"**.
     *   Select the `extension` directory within your local repository clone.
     *   The BrevityCloud AI Assistant should appear. Pin it to your toolbar for easy access.
 
-<<<<<<< HEAD
-## 4.3 Applying Infrastructure Changes
-
-Once the necessary Lambda functions are packaged:
-
-1.  **Navigate back to Infrastructure Directory:**
-    ```bash
-    cd ../infrastructure
-    ```
-2.  **Apply Terraform Configuration:**
-    ```bash
-    terraform apply -auto-approve
-    ```
-3.  **Note Terraform Outputs:** After applying, Terraform will output important values like the API Gateway endpoint URL and the Cognito Client ID. You will need these for the frontend setup.
-    ```bash
-    terraform output api_endpoint
-    terraform output cognito_user_pool_client_id
-    ```
-
-## 4.4 Frontend Setup (Extension Loading)
-
-1.  **Update Configuration:** Open the `extension/sidepanel.js` file in a text editor.
-    *   Find the constants `API_ENDPOINT` and `COGNITO_CLIENT_ID` near the top.
-    *   Replace the placeholder values with the actual values obtained from the `terraform output` command in the previous step.
-    *   **Example:**
-        ```javascript
-        // Replace with your actual Terraform output
-        const API_ENDPOINT = 'https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod'; 
-        const COGNITO_CLIENT_ID = 'xxxxxxxxxxxxxxxxxxxxxxxxxx'; 
-        ```
-    *   Save the file.
-    *   *(Note: See Development Notes section regarding automating this update.)*
-
-2.  **Load the Extension in Chrome:**
-    *   Open Chrome and navigate to `chrome://extensions/`.
-    *   Ensure **Developer mode** (usually a toggle in the top-right corner) is **enabled**.
-    *   Click the **"Load unpacked"** button.
-    *   In the file browser, navigate to and select the `extension` directory within your cloned repository.
-    *   The BrevityCloud AI Assistant extension should now appear in your list of extensions.
-
-3.  **Pin the Extension (Optional):** Click the puzzle piece icon in your Chrome toolbar and pin the BrevityCloud extension for easy access.
-
-## 5. Usage Scenarios
-=======
 ## 5. Using the Application
 
 Open the BrevityCloud side panel by clicking its icon in the Chrome toolbar.
->>>>>>> hemanth
 
 ### Registration & Login
 
@@ -343,9 +202,9 @@ Open the BrevityCloud side panel by clicking its icon in the Chrome toolbar.
 
 ### Viewing Landing Page
 
-*   Go to the completed \"Terraform Apply & Deploy Services\" workflow run on GitHub Actions.
-*   Expand the logs for the \"Export Terraform outputs\" step.
-*   Find the URL labeled \"Amplify Landing Page URL:\".
+*   Go to the completed "Terraform Apply & Deploy Services" workflow run on GitHub Actions.
+*   Expand the logs for the "Export Terraform outputs" step.
+*   Find the URL labeled "Amplify Landing Page URL:".
 *   Copy and paste this URL into your browser.
 
 ### Logging Out
@@ -353,11 +212,7 @@ Open the BrevityCloud side panel by clicking its icon in the Chrome toolbar.
 *   Click "Logout" button.
 *   Returns to login screen.
 
-<<<<<<< HEAD
-## 6. Troubleshooting
-=======
 ## 6. Testing Auto-Scaling
->>>>>>> hemanth
 
 This tests the Transcribe ECS service's ability to scale under load.
 
@@ -393,11 +248,11 @@ This tests the Transcribe ECS service's ability to scale under load.
 ## 8. Teardown (Destroy Workflow & Manual Cleanup)
 
 1.  **Run Destroy Workflow:**
-    *   Navigate to GitHub Actions -> **\"Terraform Destroy\"**.
-    *   Click **\"Run workflow\"** dropdown.
+    *   Navigate to GitHub Actions -> **"Terraform Destroy"**.
+    *   Click **"Run workflow"** dropdown.
     *   Select the branch (usually doesn't matter for destroy).
     *   Enter your **lowercase** first name (e.g., `michael`) as the `user` input.
-    *   Click **\"Run workflow\"**.
+    *   Click **"Run workflow"**.
     *   This workflow authenticates, creates the S3 bucket if needed for init, packages Lambdas (for hash calculation), initializes Terraform using your state file, and runs `terraform destroy -auto-approve`.
 2.  **Manual S3 Bucket Cleanup (Recommended):**
     *   The `terraform destroy` command **does not** delete the S3 state bucket (`tf-state-<user>-brevity`) as it's required for Terraform to operate.
@@ -406,7 +261,7 @@ This tests the Transcribe ECS service's ability to scale under load.
     *   Terraform is configured with `force_delete=true` for the ECR repositories, which *should* delete the repositories even if they contain images.
     *   If for some reason images remain, you may need to manually delete them from the ECR console before deleting the repositories (if the destroy failed to remove the repo).
 
-## 7. Development Notes
+## 9. Development Notes
 
 *   **Architecture:** Rekognition/Transcribe run in ECS Fargate tasks triggered by invoker Lambdas. Results stored in S3, status polled via API Gateway/Lambda.
 *   **State:** Each user has a separate Terraform state file in a dedicated S3 bucket (`tf-state-<user>-brevity/user/terraform.tfstate`). Bucket created automatically by workflow.
