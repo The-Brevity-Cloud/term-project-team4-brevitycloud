@@ -137,11 +137,15 @@ These steps configure the locally cloned Chrome extension to communicate with th
     *   Click **"Load unpacked"**.
     *   Select the `extension` directory within your local repository clone.
     *   The BrevityCloud AI Assistant should appear. Pin it to your toolbar for easy access.
-2.  **Run Deployment Script:**
+2.  **Install github CLI:**
+    *   **Windows:** Install chocolatey and then run: `choco install gh`
+    *   **macOS:** Run: `brew install gh`
+3.  **Run Deployment Script:**
     *   **Windows:** Open PowerShell in the repository root and run: `.\deployment.ps1`
     *   **macOS/Linux:** Open Terminal in the repository root and run: `bash deploy.sh`
+    *   If you are running this script for the first time, please follow the instructions to grant access to our repo using the github CLI.
     *   This script reads the `.txt` files and injects the values into `extension/sidepanel.js`.
-3. **If extension is already loaded:**
+4. **If extension is already loaded:**
     *  Directly run the deployment.ps1 or deploy.sh and it will update the extension folder that is unpacked.
 
 Extras:
