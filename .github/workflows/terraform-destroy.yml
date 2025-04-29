@@ -12,54 +12,75 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      USER_INPUT: ${{ github.event.inputs.user }}
       USER: ${{ github.event.inputs.user }}
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
 
+    - name: Determine Secret Suffix
+      id: suffix
+      run: |
+        # Convert user input to uppercase for secret lookup
+        SUFFIX=$(echo "$USER_INPUT" | tr 'a-z' 'A-Z')
+        echo "Determined SECRET_SUFFIX=$SUFFIX"
+        # Set environment variable for subsequent steps
+        echo "SECRET_SUFFIX=$SUFFIX" >> $GITHUB_ENV
+      env:
+        USER_INPUT: ${{ github.event.inputs.user }}
+
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v2
 
-    - name: Configure AWS credentials (hemanth)
-      if: env.USER == 'hemanth'
+    - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_HEMANTH }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_HEMANTH }}
+        aws-access-key-id: ${{ secrets[format('AWS_ACCESS_KEY_ID_{0}', env.SECRET_SUFFIX)] }}
+        aws-secret-access-key: ${{ secrets[format('AWS_SECRET_ACCESS_KEY_{0}', env.SECRET_SUFFIX)] }}
         aws-region: us-east-1
 
-    - name: Configure AWS credentials (swetha)
-      if: env.USER == 'swetha'
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SWETHA }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SWETHA }}
-        aws-region: us-east-1
+    # --- Create S3 Backend Bucket if it doesn't exist (for init) --- 
+    - name: Create S3 Backend Bucket if Missing
+      run: |
+        BUCKET_NAME="tf-state-${{ env.USER }}-brevity"
+        if aws s3 ls "s3://$BUCKET_NAME" --region ${{ env.AWS_REGION }} > /dev/null 2>&1; then
+          echo "S3 bucket s3://$BUCKET_NAME exists."
+        else
+          echo "S3 bucket s3://$BUCKET_NAME does not exist. Creating..."
+          aws s3 mb "s3://$BUCKET_NAME" --region ${{ env.AWS_REGION }}
+          echo "S3 bucket s3://$BUCKET_NAME created."
+          # Optional: Add bucket versioning immediately
+          aws s3api put-bucket-versioning --bucket $BUCKET_NAME --versioning-configuration Status=Enabled --region ${{ env.AWS_REGION }}
+          echo "Versioning enabled for s3://$BUCKET_NAME."
+        fi
+      env:
+         AWS_REGION: us-east-1 # Explicitly needed for this step
 
-    - name: Configure AWS credentials (sanjeev)
-      if: env.USER == 'sanjeev'
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANJEEV }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANJEEV }}
-        aws-region: us-east-1
-
-    - name: Configure AWS credentials (sandeep)
-      if: env.USER == 'sandeep'
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANDEEP }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANDEEP }}
-        aws-region: us-east-1
-
-    - name: Configure AWS credentials (nithikesh)
-      if: env.USER == 'nithikesh'
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_NITHIKESH }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_NITHIKESH }}
-        aws-region: us-east-1
+    # --- Create terraform.tfvars dynamically --- 
+    - name: Create terraform.tfvars
+      working-directory: infrastructure
+      run: |
+        echo "Creating terraform.tfvars for user: ${{ env.USER }}"
+        # Set branch name based on the *intended* source branch for the user
+        # This assumes user-specific tfvars files exist locally or are generated
+        # For destroy, we just need placeholder values usually, but ensure they match expected types
+        # Using the workflow trigger branch might be problematic if it differs from the branch used for apply
+        # Let's stick to deriving it from the user for consistency during destroy
+        TFVARS_FILE="${{ env.USER }}.tfvars"
+        if [ -f "$TFVARS_FILE" ]; then
+           echo "Using existing $TFVARS_FILE to generate terraform.tfvars"
+           # Copy user-specific tfvars if it exists (safer for destroy)
+           cp "$TFVARS_FILE" terraform.tfvars
+        else
+           echo "Warning: $TFVARS_FILE not found. Creating basic terraform.tfvars for destroy."
+           # Fallback: Create basic tfvars just with user if file missing
+           echo "user = \"${{ env.USER }}\"" > terraform.tfvars
+           # Add dummy values for other required vars if needed by destroy plan (less likely)
+           echo "landing_page_source_branch = \"placeholder-branch\"" >> terraform.tfvars
+        fi
+        echo "Contents of terraform.tfvars for destroy:"
+        cat terraform.tfvars
 
     # --- Add Lambda Packaging Steps --- 
     - name: Install zip dependency
@@ -89,7 +110,9 @@ jobs:
     - name: Terraform Init and Destroy
       working-directory: infrastructure
       run: |
+        # Reverted to using user-specific bucket name in backend config
         terraform init -backend-config="bucket=tf-state-${{ env.USER }}-brevity" \
                         -backend-config="key=${{ env.USER }}/terraform.tfstate" \
                         -backend-config="region=us-east-1"
-        terraform destroy -auto-approve -var="user=${{ env.USER }}"
+        # User variable is now sourced from terraform.tfvars
+        terraform destroy -auto-approve 

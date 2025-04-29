@@ -46,3 +46,10 @@ variable "transcribe_image_uri" {
   type        = string
   default     = "placeholder" # Add default value
 }
+
+# --- NEW: Branch for Landing Page Source ---
+variable "landing_page_source_branch" {
+  description = "The branch in the GitHub repository that contains the landing page source code."
+  type        = string
+  # No default - should be provided via tfvars
+}

@@ -4,9 +4,12 @@ provider "aws" {
 
 terraform {
   backend "s3" {
-    bucket = "tf-state-hemanth-brevity"
-    key    = "ci-cd/state.tfstate"
+    # Bucket name will be dynamically configured in workflow init step
+    # bucket = "..." 
+    # Key prefix will be dynamically configured in workflow init step
+    # key    = "..." 
     region = "us-east-1"
+    # Removed explicit bucket/key, will rely on -backend-config in init
   }
 }
 
@@ -95,7 +98,7 @@ module "amplify_landing_page" {
   app_name               = "brevitycloud-landing-page"
   repo_url               = var.github_repository_url
   github_pat_secret_name = var.github_pat_secret_name
-  branch_name            = "amplify"
+  branch_name            = var.landing_page_source_branch
   user_tag               = var.user
 }
 

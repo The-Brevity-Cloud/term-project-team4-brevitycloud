@@ -15,8 +15,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      USER_INPUT: ${{ github.event.inputs.user }}
+      # USER_UPPER removed, will use SECRET_SUFFIX instead
       USER: ${{ github.event.inputs.user }}
-      # Define ECR repo names based on TF structure (can be fetched dynamically but harder pre-TF)
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }} # Need account ID for ECR URI
       AWS_REGION: us-east-1 # Define region consistently
       ECR_REPO_REKOGNITION: brevity-cloud-rekognition-service # Matches repo name in main.tf 
@@ -26,66 +27,96 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4 # Use v4
 
-    # --- Configure AWS credentials based on user input (Reverted to previous structure) ---
-    - name: Configure AWS credentials (hemanth)
-      if: env.USER == 'hemanth'
-      uses: aws-actions/configure-aws-credentials@v2 # Reverted to v2
+    - name: Determine Secret Suffix
+      id: suffix
+      run: |
+        # Convert user input to uppercase for secret lookup
+        SUFFIX=$(echo "$USER_INPUT" | tr 'a-z' 'A-Z')
+        echo "Determined SECRET_SUFFIX=$SUFFIX"
+        # Set environment variable for subsequent steps
+        echo "SECRET_SUFFIX=$SUFFIX" >> $GITHUB_ENV
+      env:
+        USER_INPUT: ${{ github.event.inputs.user }}
+
+    # User-specific credential steps modified to use SECRET_SUFFIX
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_HEMANTH }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_HEMANTH }}
+        aws-access-key-id: ${{ secrets[format('AWS_ACCESS_KEY_ID_{0}', env.SECRET_SUFFIX)] }}
+        aws-secret-access-key: ${{ secrets[format('AWS_SECRET_ACCESS_KEY_{0}', env.SECRET_SUFFIX)] }}
         aws-region: ${{ env.AWS_REGION }}
-    - name: Verify AWS Credentials (hemanth)
-      if: env.USER == 'hemanth'
+        
+    - name: Verify AWS Credentials
       run: aws sts get-caller-identity
 
-    - name: Configure AWS credentials (swetha)
-      if: env.USER == 'swetha'
-      uses: aws-actions/configure-aws-credentials@v2 # Reverted to v2
+    # --- Create S3 Backend Bucket if it doesn't exist --- 
+    - name: Create S3 Backend Bucket
+      run: |
+        BUCKET_NAME="tf-state-${{ env.USER }}-brevity"
+        # Check if bucket exists (aws s3 ls returns 0 if exists, non-zero otherwise)
+        if aws s3 ls "s3://$BUCKET_NAME" --region ${{ env.AWS_REGION }} > /dev/null 2>&1; then
+          echo "S3 bucket s3://$BUCKET_NAME already exists."
+        else
+          echo "S3 bucket s3://$BUCKET_NAME does not exist. Creating..."
+          aws s3 mb "s3://$BUCKET_NAME" --region ${{ env.AWS_REGION }}
+          echo "S3 bucket s3://$BUCKET_NAME created."
+          # Optional: Add bucket versioning immediately (recommended for state)
+          aws s3api put-bucket-versioning --bucket $BUCKET_NAME --versioning-configuration Status=Enabled --region ${{ env.AWS_REGION }}
+          echo "Versioning enabled for s3://$BUCKET_NAME."
+        fi
+      env:
+         AWS_REGION: ${{ env.AWS_REGION }}
+
+    # --- ADD Grader Credential Steps ---
+    - name: Configure AWS credentials (michael)
+      if: env.USER_INPUT == 'michael'
+      uses: aws-actions/configure-aws-credentials@v2
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SWETHA }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SWETHA }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_MICHAEL }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_MICHAEL }}
         aws-region: ${{ env.AWS_REGION }}
-    - name: Verify AWS Credentials (swetha)
-      if: env.USER == 'swetha'
+    - name: Verify AWS Credentials (michael)
+      if: env.USER_INPUT == 'michael'
       run: aws sts get-caller-identity
 
-    - name: Configure AWS credentials (sanjeev)
-      if: env.USER == 'sanjeev'
-      uses: aws-actions/configure-aws-credentials@v2 # Reverted to v2
+    - name: Configure AWS credentials (shireen)
+      if: env.USER_INPUT == 'shireen'
+      uses: aws-actions/configure-aws-credentials@v2
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANJEEV }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANJEEV }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SHIREEN }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SHIREEN }}
         aws-region: ${{ env.AWS_REGION }}
-    - name: Verify AWS Credentials (sanjeev)
-      if: env.USER == 'sanjeev'
+    - name: Verify AWS Credentials (shireen)
+      if: env.USER_INPUT == 'shireen'
       run: aws sts get-caller-identity
-
-    - name: Configure AWS credentials (sandeep)
-      if: env.USER == 'sandeep'
-      uses: aws-actions/configure-aws-credentials@v2 # Reverted to v2
+      
+    - name: Configure AWS credentials (peyton)
+      if: env.USER_INPUT == 'peyton'
+      uses: aws-actions/configure-aws-credentials@v2
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANDEEP }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANDEEP }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_PEYTON }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_PEYTON }}
         aws-region: ${{ env.AWS_REGION }}
-    - name: Verify AWS Credentials (sandeep)
-      if: env.USER == 'sandeep'
+    - name: Verify AWS Credentials (peyton)
+      if: env.USER_INPUT == 'peyton'
       run: aws sts get-caller-identity
-
-    - name: Configure AWS credentials (nithikesh)
-      if: env.USER == 'nithikesh'
-      uses: aws-actions/configure-aws-credentials@v2 # Reverted to v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_NITHIKESH }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_NITHIKESH }}
-        aws-region: ${{ env.AWS_REGION }}
-    - name: Verify AWS Credentials (nithikesh)
-      if: env.USER == 'nithikesh'
-      run: aws sts get-caller-identity
-
+      
     # --- End of User-Specific Credential Configuration --- 
 
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v3
+
+    # --- Create terraform.tfvars dynamically --- 
+    - name: Create terraform.tfvars
+      working-directory: infrastructure
+      run: |
+        echo "Creating terraform.tfvars for user: ${{ env.USER }}"
+        # Set branch name based on the workflow's current branch
+        CURRENT_BRANCH="${{ github.ref_name }}"
+        echo "user                       = \"${{ env.USER }}\"" > terraform.tfvars
+        echo "landing_page_source_branch = \"$CURRENT_BRANCH\"" >> terraform.tfvars
+        echo "Contents of terraform.tfvars:"
+        cat terraform.tfvars
 
     # --- Package Lambdas (including new invokers) ---
     - name: Install zip dependency
@@ -121,6 +152,7 @@ jobs:
       id: init 
       working-directory: infrastructure
       run: |
+        # Reverted to using user-specific bucket name in backend config
         terraform init -backend-config="bucket=tf-state-${{ env.USER }}-brevity" \
                         -backend-config="key=${{ env.USER }}/terraform.tfstate" \
                         -backend-config="region=${{ env.AWS_REGION }}"
@@ -134,10 +166,11 @@ jobs:
       id: apply-ecr
       working-directory: infrastructure
       run: |
+        # User variable is now sourced from terraform.tfvars
         terraform apply -auto-approve -no-color \
           -target=module.ecr_rekognition \
-          -target=module.ecr_transcribe \
-          -var="user=${{ env.USER }}"
+          -target=module.ecr_transcribe 
+          # Removed -var="user..."
 
     # --- Build, Tag, Push Container Images (Moved After ECR Creation) ---
     - name: Login to Amazon ECR # Correct position, relying on env credentials
@@ -182,9 +215,9 @@ jobs:
       id: plan
       working-directory: infrastructure
       run: |
+        # User variable is now sourced from terraform.tfvars
         # Run plan, capturing all output to a file, and allow step to continue
         terraform plan -no-color \
-          -var="user=${{ env.USER }}" \
           -var="rekognition_image_uri=${{ steps.build-rekognition-image.outputs.image }}" \
           -var="transcribe_image_uri=${{ steps.build-transcribe-image.outputs.image }}" > plan.out 2>&1 || true
           
@@ -208,10 +241,11 @@ jobs:
       id: apply 
       working-directory: infrastructure
       run: |
+        # User variable is now sourced from terraform.tfvars
         terraform apply -auto-approve -no-color \
-          -var="user=${{ env.USER }}" \
           -var="rekognition_image_uri=${{ steps.build-rekognition-image.outputs.image }}" \
           -var="transcribe_image_uri=${{ steps.build-transcribe-image.outputs.image }}"
+          # Removed -var="user..."
 
     # --- Post-Apply Steps --- 
     - name: Export Terraform outputs
@@ -258,7 +292,8 @@ jobs:
           echo "Error: TF_AMPLIFY_APP_ID is not set. Cannot trigger Amplify job."
           exit 1
         fi
-        BRANCH_TO_DEPLOY=${{ github.ref_name }}
+        # Trigger build for the branch the workflow ran on (which matches terraform.tfvars)
+        BRANCH_TO_DEPLOY="${{ github.ref_name }}" 
         echo "Starting Amplify build job for branch $BRANCH_TO_DEPLOY..."
         aws amplify start-job --app-id "$TF_AMPLIFY_APP_ID" --branch-name "$BRANCH_TO_DEPLOY" --job-type RELEASE
         echo "Amplify job successfully triggered."
