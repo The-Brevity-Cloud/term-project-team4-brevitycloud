@@ -141,6 +141,8 @@ These steps configure the locally cloned Chrome extension to communicate with th
     *   **Windows:** Open PowerShell in the repository root and run: `.\deployment.ps1`
     *   **macOS/Linux:** Open Terminal in the repository root and run: `bash deploy.sh`
     *   This script reads the `.txt` files and injects the values into `extension/sidepanel.js`.
+3. **If extension is already loaded:**
+    *  Directly run the deployment.ps1 or deploy.sh and it will update the extension folder that is unpacked.
 
 Extras:
 1.  **Download Artifact:** Once the "Terraform Apply & Deploy Services" workflow completes successfully, navigate to the workflow run summary page.
