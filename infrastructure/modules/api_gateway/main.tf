@@ -136,3 +136,27 @@ resource "aws_lambda_permission" "auth_lambda_permission" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
+
+# --- Get Result Integration & Route ---
+resource "aws_apigatewayv2_integration" "get_result_integration" {
+  api_id             = aws_apigatewayv2_api.api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = var.get_result_lambda_invoke_arn
+  integration_method = "POST" # Lambda proxy integration always uses POST
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_result_route" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /results/{jobId}" # Use path parameter for jobId
+  target    = "integrations/${aws_apigatewayv2_integration.get_result_integration.id}"
+}
+
+# Permission for API Gateway to invoke Get Result Lambda
+resource "aws_lambda_permission" "apigw_get_result_invoke" {
+  statement_id  = "AllowAPIGatewayInvokeGetResult"
+  action        = "lambda:InvokeFunction"
+  function_name = var.get_result_lambda_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/${aws_apigatewayv2_route.get_result_route.route_key}"
+}

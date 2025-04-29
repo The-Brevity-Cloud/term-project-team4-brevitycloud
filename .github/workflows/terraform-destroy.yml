@@ -22,7 +22,7 @@ jobs:
       uses: hashicorp/setup-terraform@v2
 
     - name: Configure AWS credentials (hemanth)
-      if: env.USER == 'hemanth'
+      if: github.event.inputs.user == 'hemanth'
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_HEMANTH }}
@@ -30,7 +30,7 @@ jobs:
         aws-region: us-east-1
 
     - name: Configure AWS credentials (swetha)
-      if: env.USER == 'swetha'
+      if: github.event.inputs.user == 'swetha'
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SWETHA }}
@@ -38,7 +38,7 @@ jobs:
         aws-region: us-east-1
 
     - name: Configure AWS credentials (sanjeev)
-      if: env.USER == 'sanjeev'
+      if: github.event.inputs.user == 'sanjeev'
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANJEEV }}
@@ -46,7 +46,7 @@ jobs:
         aws-region: us-east-1
 
     - name: Configure AWS credentials (sandeep)
-      if: env.USER == 'sandeep'
+      if: github.event.inputs.user == 'sandeep'
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANDEEP }}
@@ -54,17 +54,111 @@ jobs:
         aws-region: us-east-1
 
     - name: Configure AWS credentials (nithikesh)
-      if: env.USER == 'nithikesh'
+      if: github.event.inputs.user == 'nithikesh'
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_NITHIKESH }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_NITHIKESH }}
         aws-region: us-east-1
+        
+    # --- Grader Credential Steps ---
+    - name: Configure AWS credentials (michael)
+      if: github.event.inputs.user == 'michael'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_MICHAEL }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_MICHAEL }}
+        aws-region: us-east-1
+
+    - name: Configure AWS credentials (shireen)
+      if: github.event.inputs.user == 'shireen'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SHIREEN }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SHIREEN }}
+        aws-region: us-east-1
+      
+    - name: Configure AWS credentials (peyton)
+      if: github.event.inputs.user == 'peyton'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_PEYTON }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_PEYTON }}
+        aws-region: us-east-1
+
+    # --- Create S3 Backend Bucket if it doesn't exist (for init) --- 
+    - name: Create S3 Backend Bucket if Missing
+      run: |
+        BUCKET_NAME="tf-state-${{ env.USER }}-brevity"
+        if aws s3 ls "s3://$BUCKET_NAME" --region ${{ env.AWS_REGION }} > /dev/null 2>&1; then
+          echo "S3 bucket s3://$BUCKET_NAME exists."
+        else
+          echo "S3 bucket s3://$BUCKET_NAME does not exist. Creating..."
+          aws s3 mb "s3://$BUCKET_NAME" --region ${{ env.AWS_REGION }}
+          echo "S3 bucket s3://$BUCKET_NAME created."
+          # Optional: Add bucket versioning immediately
+          aws s3api put-bucket-versioning --bucket $BUCKET_NAME --versioning-configuration Status=Enabled --region ${{ env.AWS_REGION }}
+          echo "Versioning enabled for s3://$BUCKET_NAME."
+        fi
+      env:
+         AWS_REGION: us-east-1 # Explicitly needed for this step
+
+    # --- Create terraform.tfvars dynamically --- 
+    - name: Create terraform.tfvars
+      working-directory: infrastructure
+      run: |
+        echo "Creating terraform.tfvars for user: ${{ env.USER }}"
+        # Set branch name based on the *intended* source branch for the user
+        # This assumes user-specific tfvars files exist locally or are generated
+        # For destroy, we just need placeholder values usually, but ensure they match expected types
+        # Using the workflow trigger branch might be problematic if it differs from the branch used for apply
+        # Let's stick to deriving it from the user for consistency during destroy
+        TFVARS_FILE="${{ env.USER }}.tfvars"
+        if [ -f "$TFVARS_FILE" ]; then
+           echo "Using existing $TFVARS_FILE to generate terraform.tfvars"
+           # Copy user-specific tfvars if it exists (safer for destroy)
+           cp "$TFVARS_FILE" terraform.tfvars
+        else
+           echo "Warning: $TFVARS_FILE not found. Creating basic terraform.tfvars for destroy."
+           # Fallback: Create basic tfvars just with user if file missing
+           echo "user = \"${{ env.USER }}\"" > terraform.tfvars
+           # Add dummy values for other required vars if needed by destroy plan (less likely)
+           echo "landing_page_source_branch = \"placeholder-branch\"" >> terraform.tfvars
+        fi
+        echo "Contents of terraform.tfvars for destroy:"
+        cat terraform.tfvars
+
+    # --- Add Lambda Packaging Steps --- 
+    - name: Install zip dependency
+      run: sudo apt-get update && sudo apt-get install -y zip
+
+    - name: Package Lambda - summarize/history
+      working-directory: backend
+      run: bash package.sh
+
+    - name: Package Lambda - auth
+      working-directory: backend
+      run: bash package_auth.sh
+
+    - name: Package Lambda - invoke_rekognition
+      working-directory: backend
+      run: bash package_invoke_rekognition.sh
+
+    - name: Package Lambda - invoke_transcribe
+      working-directory: backend
+      run: bash package_invoke_transcribe.sh
+
+    - name: Package Lambda - get_result
+      working-directory: backend
+      run: bash package_get_result.sh
+    # --- End Lambda Packaging Steps ---
 
     - name: Terraform Init and Destroy
       working-directory: infrastructure
       run: |
+        # Reverted to using user-specific bucket name in backend config
         terraform init -backend-config="bucket=tf-state-${{ env.USER }}-brevity" \
                         -backend-config="key=${{ env.USER }}/terraform.tfstate" \
                         -backend-config="region=us-east-1"
-        terraform destroy -auto-approve
+        # User variable is now sourced from terraform.tfvars
+        terraform destroy -auto-approve 

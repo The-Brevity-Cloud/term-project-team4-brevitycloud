@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrevityCloud AI Assistant - User Manual</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>BrevityCloud AI Assistant - User Manual</h1>
+        <p>(v3 - ECS Architecture, Automated Buckets)</p>
+    </header>
+    <div class="container">
+        <nav class="sidebar">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#prerequisites-aws">1. Prerequisites (AWS)</a></li>
+                <li><a href="#prerequisites-github">2. Prerequisites (GitHub)</a></li>
+                <li><a href="#deployment">3. Deployment (GitHub Actions)</a></li>
+                <li><a href="#frontend-setup">4. Frontend Setup</a></li>
+                <li><a href="#using-app">5. Using the Application</a>
+                    <ul>
+                        <li><a href="#usage-register-login">Registration & Login</a></li>
+                        <li><a href="#usage-summarize">Summarizing</a></li>
+                        <li><a href="#usage-chat">Chatting</a></li>
+                        <li><a href="#usage-rekognition">Image Text (Rekognition)</a></li>
+                        <li><a href="#usage-transcribe">Voice Input (Transcribe)</a></li>
+                        <li><a href="#usage-history">Viewing History</a></li>
+                        <li><a href="#usage-landing-page">Viewing Landing Page</a></li>
+                        <li><a href="#usage-logout">Logging Out</a></li>
+                    </ul>
+                </li>
+                <li><a href="#testing-autoscaling">6. Testing Auto-Scaling</a></li>
+                <li><a href="#troubleshooting">7. Troubleshooting</a></li>
+                <li><a href="#teardown">8. Teardown (GitHub Actions)</a></li>
+                <li><a href="#dev-notes">9. Development Notes</a></li>
+            </ul>
+        </nav>
+        <main class="content">
+            <p>This document provides detailed instructions on how to set up, configure, deploy, and use the BrevityCloud AI Assistant Chrome Extension with its ECS-based backend components.</p>
+            <hr>
+
+            <section id="prerequisites-aws">
+                <h2>1. Prerequisites (AWS Account & IAM User Setup)</h2>
+                <p>These steps need to be performed <strong>once per AWS account</strong> that will be used for deployment (e.g., each grader needs to do this in their own account).</p>
+                <ol>
+                    <li><strong>AWS Account:</strong> Ensure you have access to an AWS account.</li>
+                    <li><strong>IAM User Creation:</strong>
+                        <ul>
+                            <li>Log in to the AWS Management Console and navigate to the <strong>IAM</strong> service.</li>
+                            <li>Go to <strong>Users</strong> and click <strong>Create user</strong>.</li>
+                            <li>Enter a username (e.g., <code>michael-deployer</code>, <code>shireen-deployer</code>).</li>
+                            <li>Click <strong>Next</strong>.</li>
+                            <li>Choose <strong>Attach policies directly</strong>.</li>
+                            <li>Search for and attach policies that grant the necessary permissions. A combination like the following is recommended, but review your organization's policies:
+                                <ul>
+                                    <li><code>IAMFullAccess</code> (Or more scoped IAM permissions if preferred, needs ability to create roles/policies for services)</li>
+                                    <li><code>AmazonS3FullAccess</code> (Needed for state bucket creation and interaction)</li>
+                                    <li><code>AmazonEC2ContainerRegistryFullAccess</code> (For ECR push/pull)</li>
+                                    <li><code>AmazonECS_FullAccess</code> (For ECS cluster/service/task management)</li>
+                                    <li><code>AWSLambda_FullAccess</code> (For Lambda creation/management)</li>
+                                    <li><code>AmazonAPIGatewayAdministrator</code> (For API Gateway setup)</li>
+                                    <li><code>AmazonDynamoDBFullAccess</code> (For DynamoDB table)</li>
+                                    <li><code>AmazonCognitoPowerUser</code> (For Cognito User Pool)</li>
+                                    <li><code>AmazonKendraFullAccess</code> (For Kendra Index)</li>
+                                    <li><code>AmazonBedrockFullAccess</code> (Or specifically allow <code>bedrock:InvokeModel</code> on the required models)</li>
+                                    <li><code>AmazonRekognitionFullAccess</code></li>
+                                    <li><code>AmazonTranscribeFullAccess</code></li>
+                                    <li><code>AmazonAmplifyAdministrator</code> (For Amplify deployment)</li>
+                                    <li><code>SecretsManagerReadWrite</code> (To read the GitHub PAT secret)</li>
+                                    <li><code>CloudWatchLogsFullAccess</code> (For log access)</li>
+                                    <li><em>(Note: Using <code>AdministratorAccess</code> grants all necessary permissions but is less secure. Use more granular policies if possible.)</em></li>
+                                </ul>
+                            </li>
+                            <li>Click <strong>Next</strong>, review, and click <strong>Create user</strong>.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Generate Access Keys:</strong>
+                        <ul>
+                            <li>Click on the newly created username in the IAM Users list.</li>
+                            <li>Go to the <strong>Security credentials</strong> tab.</li>
+                            <li>Scroll down to <strong>Access keys</strong> and click <strong>Create access key</strong>.</li>
+                            <li>Select <strong>Command Line Interface (CLI)</strong> as the use case.</li>
+                            <li>Acknowledge the recommendation and click <strong>Next</strong>.</li>
+                            <li>(Optional) Set a description tag.</li>
+                            <li>Click <strong>Create access key</strong>.</li>
+                            <li><strong>CRITICAL:</strong> Immediately copy both the <strong>Access key ID</strong> and the <strong>Secret access key</strong>. Store them securely. The Secret access key will <em>not</em> be shown again.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Enable Bedrock Model Access:</strong>
+                        <ul>
+                            <li>Navigate to the <strong>Amazon Bedrock</strong> service console in the <strong>us-east-1</strong> region.</li>
+                            <li>In the bottom-left menu, click <strong>Model access</strong>.</li>
+                            <li>Click <strong>Manage model access</strong> (top-right).</li>
+                            <li>Find <strong>Anthropic</strong> -> <strong>Claude 3 Sonnet</strong> and check the box.</li>
+                            <li>Click <strong>Save changes</strong>.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Create GitHub PAT Secret in Secrets Manager:</strong>
+                        <ul>
+                            <li>Navigate to the <strong>AWS Secrets Manager</strong> service console in the <strong>us-east-1</strong> region.</li>
+                            <li>Click <strong>Store a new secret</strong>.</li>
+                            <li>Select <strong>Other type of secret</strong>.</li>
+                            <li>Under <strong>Secret key/value</strong>, click <strong>Plaintext</strong>.</li>
+                            <li>Paste your GitHub Personal Access Token (PAT) into the plaintext field. The PAT needs the <code>repo</code> scope to allow Amplify to access your repository.</li>
+                            <li>Click <strong>Next</strong>.</li>
+                            <li>Enter the <strong>Secret name</strong> exactly as <code>Github-PAT</code>.</li>
+                            <li>Click <strong>Next</strong> through the rotation settings (can leave as default).</li>
+                            <li>Review and click <strong>Store</strong>.</li>
+                        </ul>
+                    </li>
+                </ol>
+            </section>
+
+            <section id="prerequisites-github">
+                <h2>2. Prerequisites (GitHub Setup)</h2>
+                <ol>
+                    <li><strong>GitHub Account:</strong> Ensure you have a GitHub account.</li>
+                    <li><strong>Repository Access:</strong> Be added as a collaborator to the <code>The-Brevity-Cloud/term-project-team4-brevitycloud</code> repository.</li>
+                    <li><strong>Configure GitHub Secrets:</strong>
+                        <ul>
+                            <li>Navigate to the repository on GitHub.</li>
+                            <li>Go to <code>Settings</code> > <code>Secrets and variables</code> > <code>Actions</code>.</li>
+                            <li>Click <strong>New repository secret</strong> for each of the following:
+                                <ul>
+                                    <li><code>AWS_ACCOUNT_ID</code>: Enter your 12-digit AWS Account ID.</li>
+                                    <li><code>AWS_ACCESS_KEY_&lt;YOUR_NAME_UPPERCASE&gt;</code>: Enter the Access Key ID generated for your IAM User (e.g., for user <code>michael</code>, the secret name is <code>AWS_ACCESS_KEY_MICHAEL</code>).</li>
+                                    <li><code>AWS_SECRET_KEY_&lt;YOUR_NAME_UPPERCASE&gt;</code>: Enter the Secret Access Key generated for your IAM User (e.g., for user <code>michael</code>, the secret name is <code>AWS_SECRET_KEY_MICHAEL</code>).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                </ol>
+            </section>
+
+            <section id="deployment">
+                <h2>3. Deployment (GitHub Actions Workflow)</h2>
+                <p>This workflow deploys the entire backend infrastructure, Docker services, and the landing page.</p>
+                <ol>
+                    <li><strong>Navigate to Actions:</strong> Go to the <strong>Actions</strong> tab in the GitHub repository.</li>
+                    <li><strong>Select Workflow:</strong> Find the <strong>"Terraform Apply & Deploy Services"</strong> workflow in the list.</li>
+                    <li><strong>Run Workflow:</strong>
+                        <ul>
+                            <li>Click the <strong>"Run workflow"</strong> dropdown button.</li>
+                            <li>Ensure the correct branch is selected (usually <code>main</code> for final deployment/grading, or <code>hemanth</code> for development).</li>
+                            <li>In the <strong>"Team member identifier"</strong> input box, enter your <strong>lowercase</strong> first name (e.g., <code>michael</code>, <code>shireen</code>, <code>peyton</code>, <code>hemanth</code>). This <strong>must</strong> match the suffix used in your GitHub secret names (but in lowercase).</li>
+                            <li>Click the green <strong>"Run workflow"</strong> button.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Monitor:</strong> Observe the workflow progress in the Actions tab. It performs the following key steps:
+                        <ul>
+                            <li>Checks out code from the selected branch.</li>
+                            <li>Configures AWS credentials using the secrets matching your input name.</li>
+                            <li>Creates an S3 bucket (<code>tf-state-&lt;your_name&gt;-brevity</code>) for Terraform state if it doesn't exist.</li>
+                            <li>Creates <code>terraform.tfvars</code> with your username and the current branch name.</li>
+                            <li>Packages Lambda functions.</li>
+                            <li>Initializes Terraform using your user-specific S3 state bucket/key.</li>
+                            <li>Applies Terraform to create ECR repositories.</li>
+                            <li>Builds and pushes Rekognition/Transcribe Docker images (from the current branch code) to ECR.</li>
+                            <li>Applies the full Terraform configuration (VPC, ECS, Lambdas, API Gateway, etc.).</li>
+                            <li>Exports API endpoint and Cognito Client ID.</li>
+                            <li>Uploads configuration as an artifact.</li>
+                            <li>Triggers an Amplify deployment using the code from the current branch.</li>
+                        </ul>
+                    </li>
+                </ol>
+            </section>
+
+            <section id="frontend-setup">
+                <h2>4. Frontend Setup (Local Extension Configuration)</h2>
+                <p>These steps configure the locally cloned Chrome extension to communicate with the deployed backend.</p>
+                <ol>
+                    <li><strong>Download Artifact:</strong> Once the "Terraform Apply & Deploy Services" workflow completes successfully, navigate to the workflow run summary page.</li>
+                    <li>Scroll down to <strong>Artifacts</strong> and download the <code>extension-config</code> artifact (it will be a zip file).</li>
+                    <li><strong>Extract Files:</strong> Extract the contents (<code>api_endpoint.txt</code>, <code>cognito_client_id.txt</code>) into the root directory of your locally cloned repository, overwriting if they exist.</li>
+                    <li><strong>Run Deployment Script:</strong>
+                        <ul>
+                            <li><strong>Windows:</strong> Open PowerShell in the repository root and run: <code>.\deployment.ps1</code></li>
+                            <li><strong>macOS/Linux:</strong> Open Terminal in the repository root and run: <code>bash deploy.sh</code></li>
+                            <li>This script reads the <code>.txt</code> files and injects the values into <code>extension/sidepanel.js</code>.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Load Extension in Chrome:</strong>
+                        <ul>
+                            <li>Open Google Chrome.</li>
+                            <li>Navigate to <code>chrome://extensions/</code>.</li>
+                            <li>Ensure <strong>Developer mode</strong> (top-right toggle) is <strong>enabled</strong>.</li>
+                            <li>Click <strong>"Load unpacked"</strong>.</li>
+                            <li>Select the <code>extension</code> directory within your local repository clone.</li>
+                            <li>The BrevityCloud AI Assistant should appear. Pin it to your toolbar for easy access.</li>
+                        </ul>
+                    </li>
+                </ol>
+            </section>
+
+            <section id="using-app">
+                <h2>5. Using the Application</h2>
+                <p>Open the BrevityCloud side panel by clicking its icon in the Chrome toolbar.</p>
+
+                <article id="usage-register-login">
+                    <h3>Registration & Login</h3>
+                    <ul>
+                        <li>Click the BrevityCloud extension icon.</li>
+                        <li>If new, click "Register", enter email/password, click "Register".</li>
+                        <li>Check email for verification code, enter it in the side panel, click "Verify".</li>
+                        <li>Enter registered email/password, click "Login".</li>
+                    </ul>
+                </article>
+
+                <article id="usage-summarize">
+                    <h3>Summarizing a Webpage</h3>
+                    <ul>
+                        <li>Navigate to a webpage.</li>
+                        <li>Ensure logged in.</li>
+                        <li>Click the extension icon.</li>
+                        <li>Select model (Kendra/Bedrock).</li>
+                        <li>Click "Summarize this page".</li>
+                        <li>Wait for the summary to appear.</li>
+                    </ul>
+                </article>
+
+                <article id="usage-chat">
+                    <h3>Chatting with Page Context</h3>
+                    <ul>
+                        <li>Summarize a page first.</li>
+                        <li>Type question in the input box at the bottom.</li>
+                        <li>Click "Send".</li>
+                        <li>The response appears below the summary.</li>
+                    </ul>
+                </article>
+
+                <article id="usage-rekognition">
+                    <h3>Detecting Text in Images (Async)</h3>
+                    <ul>
+                        <li>Navigate to a webpage with images.</li>
+                        <li>Ensure logged in.</li>
+                        <li>Right-click an image.</li>
+                        <li>Select "Detect Text Using Amazon Rekognition".</li>
+                        <li>Side panel opens/updates, shows the image, and displays "Processing...".</li>
+                        <li>Detected text appears in the text area after polling completes (seconds). Errors are shown if failed.</li>
+                        <li><em>(Screenshot Idea: Show side panel with image displayed and "Processing..." text, then another with detected text)</em></li>
+                    </ul>
+                </article>
+
+                <article id="usage-transcribe">
+                    <h3>Using Voice Input (Async)</h3>
+                    <ul>
+                        <li>Ensure logged in.</li>
+                        <li>Click the microphone icon.</li>
+                        <li>Grant permission if prompted.</li>
+                        <li>Speak query.</li>
+                        <li>Click mic icon again to stop.</li>
+                        <li>"Audio submitted..." message appears in chat.</li>
+                        <li>Final transcript appears as a new chat message after polling (seconds-minutes). Errors are shown if failed.</li>
+                        <li><em>(Screenshot Idea: Show chat area with "Audio submitted..." message, then another with the transcribed text message)</em></li>
+                    </ul>
+                </article>
+
+                <article id="usage-history">
+                    <h3>Viewing History</h3>
+                    <ul>
+                        <li>Ensure logged in.</li>
+                        <li>Click "View History" button.</li>
+                        <li>Panel displays recent summaries and chats.</li>
+                        <li>Click "Back" to return.</li>
+                    </ul>
+                </article>
+
+                <article id="usage-landing-page">
+                    <h3>Viewing Landing Page</h3>
+                    <ul>
+                        <li>Go to the completed "Terraform Apply & Deploy Services" workflow run on GitHub Actions.</li>
+                        <li>Expand the logs for the "Export Terraform outputs" step.</li>
+                        <li>Find the URL labeled "Amplify Landing Page URL:".</li>
+                        <li>Copy and paste this URL into your browser.</li>
+                    </ul>
+                </article>
+
+                <article id="usage-logout">
+                    <h3>Logging Out</h3>
+                    <ul>
+                        <li>Click "Logout" button.</li>
+                        <li>Returns to login screen.</li>
+                    </ul>
+                </article>
+            </section>
+
+            <section id="testing-autoscaling">
+                <h2>6. Testing Auto-Scaling</h2>
+                <p>This tests the Transcribe ECS service's ability to scale under load.</p>
+                <ol>
+                    <li><strong>Get JWT Token:</strong> Log in to the extension. Open browser Dev Tools (F12) -> Application/Storage -> Session Storage -> Find extension origin -> Copy <code>id_token</code> value.</li>
+                    <li><strong>Run Test Script:</strong>
+                        <ul>
+                            <li>Open Bash terminal (Linux/macOS/WSL) in the repository root.</li>
+                            <li>Get API endpoint from <code>api_endpoint.txt</code> (created by <code>deployment.ps1</code>/<code>deploy.sh</code>).</li>
+                            <li>Run: <code>bash test_autoscaling.sh &lt;API_ENDPOINT&gt; &lt;JWT_TOKEN&gt;</code></li>
+                        </ul>
+                    </li>
+                    <li><strong>Observe Scaling (AWS Console):</strong>
+                        <ul>
+                            <li>Go to <strong>ECS</strong> -> Clusters -> Select your cluster (<code>brevity-cloud-&lt;user&gt;-cluster</code>).</li>
+                            <li>Navigate to the <strong>Services</strong> tab -> click <code>brevity-cloud-&lt;user&gt;-transcribe-service</code>.</li>
+                            <li><strong>Tasks Tab:</strong> Watch "Running tasks count" increase (e.g., 1 -> 3). <em>(Screenshot: Show task count increasing)</em></li>
+                            <li><strong>Events Tab:</strong> Look for "service ... reached steady state" and "service ... registered X targets ..." events indicating scaling actions. <em>(Screenshot: Show scaling events)</em></li>
+                            <li><strong>CloudWatch Metrics:</strong> Go to CloudWatch -> Metrics -> ECS -> Cluster Name, Service Name. Graph <code>CPUUtilization</code>. Watch it spike during the test and drop afterward. <em>(Screenshot: Show CPU graph spiking)</em></li>
+                        </ul>
+                    </li>
+                    <li><strong>Verify Scale-In:</strong> After the script finishes, observe the task count eventually return to the minimum (usually 1) as CPU usage drops.</li>
+                </ol>
+            </section>
+
+            <section id="troubleshooting">
+                <h2>7. Troubleshooting</h2>
+                <ul>
+                    <li><strong>Workflow Failures:</strong>
+                        <ul>
+                            <li><code>Configure AWS Credentials</code> step: Check GitHub Actions secret names match <code>AWS_ACCESS_KEY_&lt;YOUR_NAME_UPPERCASE&gt;</code> / <code>AWS_SECRET_KEY_&lt;YOUR_NAME_UPPERCASE&gt;</code>. Verify the corresponding IAM user has required permissions (Section 1).</li>
+                            <li><code>Create S3 Backend Bucket</code> step: Verify IAM user has <code>s3:CreateBucket</code> and related S3 permissions.</li>
+                            <li><code>Terraform Init/Plan/Apply</code>: Check detailed Terraform error message printed in the logs. Common issues: missing permissions for creating specific resources, invalid configuration, state lock errors.</li>
+                            <li><code>Docker Push</code>: Verify ECR repository exists and IAM user has ECR push permissions.</li>
+                            <li><code>Trigger Amplify Deployment</code>: Ensure the target branch exists in GitHub and the IAM user has <code>amplify:StartJob</code> permission.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Login/API Errors (Extension UI):</strong> Check browser developer console (F12) for network errors (4xx/5xx). Check API Gateway CloudWatch Logs (<code>/aws/apigateway/...</code>) and relevant Lambda logs (<code>/aws/lambda/...-summarize</code>, etc.).</li>
+                    <li><strong>Rekognition/Transcribe Failures (UI Error / No Result):</strong>
+                        <ul>
+                            <li>Check <strong>Invoker Lambda Logs First:</strong> <code>/aws/lambda/brevity-cloud-&lt;user&gt;-invoke-rekognition</code> and <code>/aws/lambda/brevity-cloud-&lt;user&gt;-invoke-transcribe</code>. Look for errors invoking <code>ecs:RunTask</code> or <code>iam:PassRole</code>.</li>
+                            <li>Check <strong>ECS Task Logs:</strong> <code>/ecs/brevity-cloud-&lt;user&gt;-rekognition</code> and <code>/ecs/brevity-cloud-&lt;user&gt;-transcribe</code>. Look for Python errors (<code>rekognition.py</code>, <code>transcribe.py</code>), permission errors calling AWS services (Rekognition, Transcribe, S3), or missing environment variables.</li>
+                            <li>Check <strong>Get Result Lambda Logs:</strong> <code>/aws/lambda/brevity-cloud-&lt;user&gt;-get-result</code> if polling seems stuck or returns errors.</li>
+                            <li>Check <strong>S3 Bucket:</strong> Look in the results bucket (<code>&lt;project&gt;-results-&lt;user&gt;</code>) for output files (<code>rekognition-results/*.txt</code>, <code>transcribe-results/*.txt`) or failure markers (`transcribe-results/*.FAILED.txt</code>).</li>
+                        </ul>
+                    </li>
+                    <li><strong>Terraform State Lock:</strong> If Terraform commands hang or explicitly mention a lock, follow manual unlock procedure (Section 8) <em>only if certain no other process is running</em>.</li>
+                </ul>
+            </section>
+
+            <section id="teardown">
+                <h2>8. Teardown (Destroy Workflow & Manual Cleanup)</h2>
+                <ol>
+                    <li><strong>Run Destroy Workflow:</strong>
+                        <ul>
+                            <li>Navigate to GitHub Actions -> <strong>"Terraform Destroy"</strong>.</li>
+                            <li>Click <strong>"Run workflow"</strong> dropdown.</li>
+                            <li>Select the branch (usually doesn't matter for destroy).</li>
+                            <li>Enter your <strong>lowercase</strong> first name (e.g., <code>michael</code>) as the <code>user</code> input.</li>
+                            <li>Click <strong>"Run workflow"</strong>.</li>
+                            <li>This workflow authenticates, creates the S3 bucket if needed for init, packages Lambdas (for hash calculation), initializes Terraform using your state file, and runs <code>terraform destroy -auto-approve</code>.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Manual S3 Bucket Cleanup (Recommended):</strong>
+                        <ul>
+                            <li>The <code>terraform destroy</code> command <strong>does not</strong> delete the S3 state bucket (<code>tf-state-&lt;user&gt;-brevity</code>) as it's required for Terraform to operate.</li>
+                            <li>To fully clean up, navigate to the S3 service in the AWS Console and manually delete the <code>tf-state-&lt;user&gt;-brevity</code> bucket <strong>after</strong> the destroy workflow completes successfully. Ensure the bucket is empty first (Terraform state file and lock files should be gone).</li>
+                        </ul>
+                    </li>
+                    <li><strong>Manual ECR Image Cleanup (Optional):</strong> The destroy workflow does not remove container images from ECR. These can be manually deleted from the ECR console if desired.</li>
+                </ol>
+            </section>
+
+             <section id="dev-notes">
+                <h2>9. Development Notes</h2>
+                <p>Placeholder for any development-specific notes or instructions.</p>
+                 <!-- Add specific dev notes here if needed -->
+            </section>
+
+        </main>
+    </div>
+    <footer>
+        <p>&copy; 2024 BrevityCloud Team 4. All rights reserved.</p>
+    </footer>
+</body>
+</html>

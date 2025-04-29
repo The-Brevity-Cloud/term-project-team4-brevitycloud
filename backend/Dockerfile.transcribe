@@ -1,0 +1,27 @@
+# Use an official Python runtime as a parent image
+FROM python:3.9-slim
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the requirements file into the container at /app
+# Assuming a shared requirements.txt for now, adjust if needed
+COPY requirements.txt .
+
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application scripts into the container at /app
+COPY transcribe.py .
+COPY logger.py .
+
+# Define environment variable placeholders
+ENV S3_BUCKET=""
+ENV S3_KEY=""
+ENV JOB_NAME=""
+# Removed OUTPUT_BUCKET as we use S3_BUCKET for output now
+# Add other ENV placeholders needed by transcribe.py
+
+# Run transcribe.py when the container launches
+# Assumes transcribe.py is adapted to run its main logic directly
+CMD ["python", "transcribe.py"] 

@@ -1,28 +1,11 @@
 data "aws_caller_identity" "current" {}
 
-# Policy attachment for Rekognition access
-# Note: Attaching to the role NAME passed in
-resource "aws_iam_role_policy_attachment" "lambda_rekognition" {
-  role       = var.lambda_role_name # Use the role NAME
-  policy_arn = var.rekognition_policy_arn
-}
-
-# Lambda function for Rekognition
-resource "aws_lambda_function" "rekognition_lambda" {
-  filename         = var.rekognition_lambda_zip_path
-  function_name    = "${var.project_name}-rekognition"
-  role             = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.lambda_role_name}" # Construct ARN here if needed, or pass full ARN separately for the lambda function resource
-  handler          = "rekognition.lambda_handler"
-  runtime          = "python3.9"
-  timeout          = 30
-  memory_size      = 256
-}
-
-# Rekognition Lambda Integration
+# Rekognition Lambda Integration (Points to Invoker Lambda)
 resource "aws_apigatewayv2_integration" "rekognition_lambda_integration" {
   api_id             = var.api_gateway_id
   integration_type   = "AWS_PROXY"
-  integration_uri    = aws_lambda_function.rekognition_lambda.invoke_arn # Use the invoke ARN from the lambda created here
+  # Use the INVOKER Lambda ARN passed as input
+  integration_uri    = var.invoke_rekognition_lambda_arn 
   integration_method = "POST"
   payload_format_version = "2.0"
 }
@@ -34,11 +17,12 @@ resource "aws_apigatewayv2_route" "rekognition_route" {
   target    = "integrations/${aws_apigatewayv2_integration.rekognition_lambda_integration.id}"
 }
 
-# Rekognition Lambda Permission
-resource "aws_lambda_permission" "rekognition_lambda_permission" {
-  statement_id  = "AllowAPIGatewayInvokeRekognition"
+# Rekognition Lambda Permission (For Invoker Lambda)
+resource "aws_lambda_permission" "rekognition_invoker_permission" {
+  statement_id  = "AllowAPIGatewayInvokeRekognitionInvoker"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.rekognition_lambda.function_name
+  function_name = var.invoke_rekognition_lambda_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${var.api_gateway_execution_arn}/*/*" # Use the execution ARN passed as input
+  # Construct Source ARN from API GW execution ARN and the specific route key
+  source_arn    = "${var.api_gateway_execution_arn}/*/${aws_apigatewayv2_route.rekognition_route.route_key}"
 } 

@@ -1,8 +1,8 @@
 // API Configuration
-const API_ENDPOINT = 'https://65qogtpin1.execute-api.us-east-1.amazonaws.com/prod';
+const API_ENDPOINT = 'https://uxi2askv8l.execute-api.us-east-1.amazonaws.com/prod';
 const AUTH_ENDPOINT = `${API_ENDPOINT}/auth`;
 const SUMMARIZE_ENDPOINT = `${API_ENDPOINT}/summarize`;
-const COGNITO_CLIENT_ID = '7n7mrckbmgc4ru1bjbccj4462';
+const COGNITO_CLIENT_ID = '7n6rth0cr5qrivgh19rkujkied';
 
 // UI Elements
 const authContainer = document.getElementById('authContainer');
@@ -75,6 +75,9 @@ let currentPageUrl = '';
 const kendraModeBtn = document.getElementById('kendraModeBtn');
 const bedrockModeBtn = document.getElementById('bedrockModeBtn');
 let useKendra = true; // Default to Kendra
+
+const POLLING_INTERVAL_MS = 3000; // 3 seconds
+const POLLING_TIMEOUT_MS = 180000; // 3 minutes
 
 // Check Authentication Status on Load
 chrome.storage.local.get(['isAuthenticated', 'userEmail'], (result) => {
@@ -426,46 +429,45 @@ async function detectTextImage(imageUrl) {
         rekognitionText.value = '';
         hideError(rekognitionError);
 
-        // Retrieve token for authentication if needed by API Gateway (assuming not needed for now)
-        // const { idToken } = await chrome.storage.local.get('idToken'); 
+        // *** Retrieve ID Token for Authorization ***
+        const { idToken } = await chrome.storage.local.get('idToken'); 
+        if (!idToken) {
+            throw new Error("Authentication error: Not logged in or ID token missing.");
+        }
 
         const response = await fetch(`${API_ENDPOINT}/rekognition`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
-                // Add Authorization header if required by API Gateway/Lambda
-                // 'Authorization': `Bearer ${idToken}` 
+                'Accept': 'application/json',
+                // *** Add Authorization header ***
+                'Authorization': `Bearer ${idToken}` 
             },
             body: JSON.stringify({ image_url: imageUrl })
         });
 
-        const data = await response.json();
+        // --- Modify handleRekognitionResponse call location ---
+        // Process the response using the async handler function
+        await handleRekognitionResponse(response); 
 
-        if (response.ok) {
-            rekognitionText.value = data.detected_text || 'No text detected.';
-        } else {
-            throw new Error(data.error || 'Failed to detect text');
-        }
     } catch (error) {
         console.error('Rekognition Error:', error);
         showError(rekognitionError, `Error: ${error.message}`);
         rekognitionText.value = 'Error detecting text.'; // Show error in text area too
-    } finally {
-        rekognitionLoading.style.display = 'none';
+        rekognitionLoading.style.display = 'none'; // Ensure loading hides on error
     }
 }
 
 // Transcribe Audio Function
 async function transcribeAudio(audioBlob) {
     const transcribeLoadingText = "Transcribing audio..."; 
-    const statusElement = document.getElementById('chatLoading'); // Reuse chat loading or create specific one
+    const statusElement = document.getElementById('chatLoading');
     const queryInput = document.getElementById('queryInput');
 
     try {
         statusElement.querySelector('.loading-text').textContent = transcribeLoadingText;
         statusElement.style.display = 'block';
-        micBtn.disabled = true; // Disable mic while transcribing
+        micBtn.disabled = true;
         queryInput.disabled = true;
         queryInput.placeholder = transcribeLoadingText;
 
@@ -474,40 +476,41 @@ async function transcribeAudio(audioBlob) {
         reader.readAsDataURL(audioBlob);
         const base64Audio = await new Promise((resolve, reject) => {
             reader.onloadend = () => {
-                // Remove the data URL prefix (e.g., "data:audio/webm;base64,")
                 const base64String = reader.result.split(',', 2)[1];
                 resolve(base64String);
             };
             reader.onerror = reject;
         });
 
+        // *** Retrieve ID Token for Authorization ***
+        const { idToken } = await chrome.storage.local.get('idToken');
+        if (!idToken) {
+            throw new Error("Authentication error: Not logged in or ID token missing.");
+        }
+
         const response = await fetch(`${API_ENDPOINT}/transcribe`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
-                // Add Authorization header if needed
+                'Accept': 'application/json',
+                 // *** Add Authorization header ***
+                'Authorization': `Bearer ${idToken}`
             },
             body: JSON.stringify({ audio_data: base64Audio })
         });
 
-        const data = await response.json();
+        // --- Modify to use the async handler --- 
+        await handleTranscribeResponse(response); // Assume/create a handler similar to Rekognition's
 
-        if (response.ok) {
-            queryInput.value = data.transcript || ''; // Populate input field
-            console.log("Transcription successful:", data.transcript);
-        } else {
-            throw new Error(data.error || 'Failed to transcribe audio');
-        }
     } catch (error) {
         console.error('Transcription Error:', error);
         alert(`Transcription Error: ${error.message}`);
         queryInput.placeholder = "Error transcribing. Try again.";
-    } finally {
+        // Ensure UI resets on error
         statusElement.style.display = 'none';
         micBtn.disabled = false;
         queryInput.disabled = false;
-        queryInput.placeholder = "Ask a question about this page..."; // Reset placeholder
+        queryInput.placeholder = "Ask a question about this page..."; 
     }
 }
 
@@ -891,3 +894,257 @@ async function fetchHistory() {
         historyLoading.style.display = 'none';
     }
 }
+
+// Helper function to poll for results
+function pollForResult(jobId, type, resultElementId, loadingElementId, statusElementId) {
+    const startTime = Date.now();
+    let intervalId = null;
+    const statusDiv = document.getElementById(statusElementId); // Optional element to show status updates
+
+    const checkStatus = async () => {
+        const elapsedTime = Date.now() - startTime;
+        if (elapsedTime > POLLING_TIMEOUT_MS) {
+            console.error(`Polling timed out for job ${jobId}`);
+            displayError(`Polling timed out for ${type} job ${jobId}.`, resultElementId); // Or update statusDiv
+            if (loadingElementId) hideLoading(loadingElementId);
+            clearInterval(intervalId);
+            return;
+        }
+
+        console.log(`Polling for job ${jobId} (type: ${type}), elapsed: ${Math.round(elapsedTime / 1000)}s`);
+        if (statusDiv) statusDiv.textContent = `Processing... (checking status)`;
+
+        try {
+            const token = await getToken();
+            if (!token) {
+                displayError("Authentication error during polling.", resultElementId);
+                clearInterval(intervalId);
+                return;
+            }
+            
+            // Ensure jobId is URL encoded if it contains special characters (unlikely for UUID/jobName)
+            const encodedJobId = encodeURIComponent(jobId); 
+            const response = await fetch(`${API_ENDPOINT}/results/${encodedJobId}?type=${type}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok && response.status !== 202) { // 202 is expected for PENDING
+                throw new Error(`Polling check failed with status ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log(`Polling response for ${jobId}:`, data);
+
+            if (data.status === 'COMPLETED') {
+                console.log(`Job ${jobId} completed.`);
+                clearInterval(intervalId);
+                if (loadingElementId) hideLoading(loadingElementId);
+                if (statusDiv) statusDiv.textContent = 'Completed.';
+
+                const resultElement = document.getElementById(resultElementId);
+                if (resultElement) {
+                     // Assuming result is plain text, adjust if it's JSON, etc.
+                    if (resultElement.tagName === 'TEXTAREA' || resultElement.tagName === 'INPUT') {
+                        resultElement.value = data.result || 'No result content found.';
+                    }
+                    // *** START: Modified logic for chat/other elements ***
+                    else {
+                         // Check if it's a transcribe result meant for the chat
+                         if (type === 'transcribe' && resultElementId === 'chatResponses') { 
+                            // Append transcript as a new message
+                            displayChatMessage('user', data.result || 'Empty Transcript'); 
+                         } else {
+                            // Original behavior for other types (like rekognition) or different elements
+                            resultElement.textContent = data.result || 'No result content found.';
+                         }
+                    }
+                    // *** END: Modified logic for chat/other elements ***
+                } else {
+                    console.error(`Result element with ID ${resultElementId} not found.`);
+                }
+                
+            } else if (data.status === 'FAILED') {
+                console.error(`Job ${jobId} failed: ${data.error}`);
+                clearInterval(intervalId);
+                 if (loadingElementId) hideLoading(loadingElementId);
+                displayError(`Job ${jobId} failed: ${data.error || 'Unknown reason'}`, resultElementId); // Or update statusDiv
+            } else if (data.status === 'PENDING') {
+                // Continue polling
+                 if (statusDiv) statusDiv.textContent = `Processing... (status: PENDING)`;
+            } else {
+                 // Unexpected status
+                console.error(`Unexpected status for job ${jobId}: ${data.status}`);
+                 if (statusDiv) statusDiv.textContent = `Processing... (status: ${data.status || 'Unknown'})`;
+                // Continue polling? Or treat as error? Let's continue for now.
+            }
+        } catch (error) {
+            console.error(`Error during polling for job ${jobId}: ${error}`);
+            // Optionally stop polling on error, or allow retries? Stopping for now.
+            // displayError(`Polling error: ${error.message}`, resultElementId);
+            // clearInterval(intervalId);
+            // if (loadingElementId) hideLoading(loadingElementId);
+             if (statusDiv) statusDiv.textContent = `Processing... (polling error)`;
+        }
+    };
+
+    // Initial check
+    checkStatus(); 
+    // Set interval for subsequent checks
+    intervalId = setInterval(checkStatus, POLLING_INTERVAL_MS);
+}
+
+// --- Helper function to get token (if not already existing) ---
+async function getToken() {
+    const { idToken } = await chrome.storage.local.get('idToken');
+    if (!idToken) {
+        console.error("Attempted to get token but none found.");
+        // Optionally trigger logout or show login prompt
+        // showAuthContainer(); 
+    }
+    return idToken;
+}
+
+// --- Modify handleRekognitionResponse --- 
+// Make sure this function exists and handles loading indicators
+async function handleRekognitionResponse(response) { 
+    // const rekResultTextArea = document.getElementById('rekognitionText'); // Use correct ID
+    const rekLoadingIndicator = document.getElementById('rekognitionLoading');
+    const rekStatusDiv = document.getElementById('rekognition-status'); // Optional status element
+
+    if (!rekognitionText) { // Check the correct element variable
+        console.error("Rekognition result text area not found.");
+        return;
+    }
+    // Loading indicator should have been shown by detectTextImage
+    // rekognitionText.value = ''; // Clear previous results? Maybe keep old while processing?
+    if (rekStatusDiv) rekStatusDiv.textContent = 'Processing response...';
+
+    try {
+        if (response.status === 202) { // Check for Accepted status
+            const data = await response.json();
+            const jobId = data.jobId; 
+            if (jobId) {
+                console.log(`Rekognition job submitted. Job ID: ${jobId}`);
+                rekognitionText.value = 'Processing image...'; // Update feedback
+                if (rekStatusDiv) rekStatusDiv.textContent = 'Processing... (polling)';
+                pollForResult(jobId, 'rekognition', 'rekognitionText', 'rekognitionLoading', 'rekognition-status'); // Use correct resultElementId
+            } else {
+                throw new Error("API accepted request but did not return a Job ID.");
+            }
+        } else if (response.ok) { 
+            // Handle unexpected success (sync response)
+            const data = await response.json();
+            if (rekLoadingIndicator) hideLoading(rekLoadingIndicator.id); // Correct function call
+            rekognitionText.value = data.detected_text || 'No text detected (sync).';
+            if (rekStatusDiv) rekStatusDiv.textContent = 'Completed (sync).';
+        } else {
+            // Handle API error (4xx, 5xx) from the initial request
+            const errorData = await response.json().catch(() => ({ error: `API Error ${response.status}` }));
+            throw new Error(errorData.error || `API Error: ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Error handling rekognition response:', error);
+        if (rekLoadingIndicator) hideLoading(rekLoadingIndicator.id); // Correct function call
+        // Display error in the text area
+        showError(rekognitionError, `Error: ${error.message}`); 
+        rekognitionText.value = `Error: ${error.message}`; // Also put in text area
+        if (rekStatusDiv) rekStatusDiv.textContent = 'Error.';
+    }
+}
+
+// --- Create handleTranscribeResponse (Mirroring Rekognition's) ---
+async function handleTranscribeResponse(response) {
+    const statusElement = document.getElementById('chatLoading'); 
+    const queryInput = document.getElementById('queryInput');
+    const transcribeStatusElementId = 'transcribe-status'; // Optional status element ID
+    const transcribeResultTargetElementId = 'chatResponses'; // Target the div where responses appear
+
+    if (document.getElementById(transcribeStatusElementId)) {
+         document.getElementById(transcribeStatusElementId).textContent = 'Processing response...';
+    }
+
+    try {
+        if (response.status === 202) { // Check for Accepted status
+            const data = await response.json();
+            const jobName = data.jobName; 
+            if (jobName) {
+                console.log(`Transcribe job submitted. Job Name: ${jobName}`);
+                displayChatMessage('system', 'Audio submitted. Processing transcript...');
+                // Start polling, ADAPT COMPLETION LOGIC for chat
+                pollForResult(jobName, 'transcribe', transcribeResultTargetElementId, 'chatLoading', transcribeStatusElementId);
+            } else {
+                throw new Error("API accepted request but did not return a Job Name.");
+            }
+        } else if (response.ok) {
+            // Handle unexpected sync success
+            const data = await response.json();
+            if (statusElement) statusElement.style.display = 'none';
+            micBtn.disabled = false;
+            queryInput.disabled = false;
+            queryInput.value = data.transcript || ''; // Populate input field on sync success
+            queryInput.placeholder = "Ask a question about this page..."; 
+            displayChatMessage('system', `Transcript (sync): ${data.transcript || 'Empty'}`);
+        } else {
+            // Handle API error
+            const errorData = await response.json().catch(() => ({ error: `API Error ${response.status}` }));
+            throw new Error(errorData.error || `API Error: ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Error handling transcribe response:', error);
+        if (statusElement) statusElement.style.display = 'none';
+        micBtn.disabled = false;
+        queryInput.disabled = false;
+        queryInput.placeholder = "Ask a question about this page..."; 
+        displayChatMessage('system', `Error: ${error.message}`); // Display error in chat
+    }
+}
+
+// --- Helper function displayChatMessage (ensure it exists) ---
+function displayChatMessage(sender, message) {
+    const responsesDiv = document.getElementById('chatResponses');
+    if (!responsesDiv) return;
+
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('chat-message', sender === 'user' ? 'user-message' : 'system-message'); 
+    
+    // Basic formatting (can be enhanced)
+    const contentElement = document.createElement('p');
+    contentElement.textContent = message;
+    messageElement.appendChild(contentElement);
+    
+    responsesDiv.appendChild(messageElement);
+    messageElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+// --- Helper function displayError (ensure it exists and handles element ID) ---
+function displayError(message, targetElementId) {
+    const element = document.getElementById(targetElementId);
+    if (element) {
+         // Check if it's an error display element or a general output area
+         if (element.classList.contains('error-message')) {
+             element.textContent = message;
+             element.style.display = 'block';
+         } else if (element.tagName === 'TEXTAREA' || element.tagName === 'INPUT') {
+             element.value = `Error: ${message}`; // Show error in input/textarea
+         } else {
+             // For general divs like chat output, perhaps append an error message
+             displayChatMessage('system', `Error: ${message}`); 
+         }
+    } else {
+         // Fallback alert if target element not found
+         console.error(`Target element ${targetElementId} not found for error: ${message}`);
+         // alert(`Error: ${message}`); 
+    }
+}
+
+
+
+
+
+
+
+

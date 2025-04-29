@@ -1,0 +1,29 @@
+# Use an official Python runtime as a parent image
+FROM python:3.9-slim
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the requirements file into the container at /app
+# Assuming a shared requirements.txt for now, adjust if needed
+COPY requirements.txt .
+
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application scripts into the container at /app
+COPY rekognition.py .
+COPY logger.py .
+
+# Make port 80 available to the world outside this container (if needed, unlikely for batch jobs)
+# EXPOSE 80 
+
+# Define environment variable placeholders
+ENV S3_BUCKET=""
+ENV IMAGE_URL=""
+ENV JOB_ID=""
+# Add other ENV placeholders needed by rekognition.py
+
+# Run rekognition.py when the container launches
+# Assumes rekognition.py is adapted to run its main logic directly
+CMD ["python", "rekognition.py"] 
