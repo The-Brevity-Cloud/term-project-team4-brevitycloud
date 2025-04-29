@@ -44,9 +44,19 @@ output "invoke_rekognition_lambda_arn" {
   value       = aws_lambda_function.invoke_rekognition.arn
 }
 
+output "invoke_rekognition_lambda_name" {
+  description = "Name of the Rekognition invoker Lambda function"
+  value       = aws_lambda_function.invoke_rekognition.function_name
+}
+
 output "invoke_transcribe_lambda_arn" {
   description = "ARN of the Transcribe invoker Lambda function"
   value       = aws_lambda_function.invoke_transcribe.arn
+}
+
+output "invoke_transcribe_lambda_name" {
+  description = "Name of the Transcribe invoker Lambda function"
+  value       = aws_lambda_function.invoke_transcribe.function_name
 }
 
 output "get_result_lambda_arn" {
