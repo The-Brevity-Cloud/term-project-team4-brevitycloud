@@ -130,20 +130,22 @@ This workflow deploys the entire backend infrastructure, Docker services, and th
 
 These steps configure the locally cloned Chrome extension to communicate with the deployed backend.
 
-1.  **Download Artifact:** Once the "Terraform Apply & Deploy Services" workflow completes successfully, navigate to the workflow run summary page.
-2.  Scroll down to **Artifacts** and download the `extension-config` artifact (it will be a zip file).
-3.  **Extract Files:** Extract the contents (`api_endpoint.txt`, `cognito_client_id.txt`) into the root directory of your locally cloned repository, overwriting if they exist.
-4.  **Run Deployment Script:**
-    *   **Windows:** Open PowerShell in the repository root and run: `.\deployment.ps1`
-    *   **macOS/Linux:** Open Terminal in the repository root and run: `bash deploy.sh`
-    *   This script reads the `.txt` files and injects the values into `extension/sidepanel.js`.
-5.  **Load Extension in Chrome:**
+1.  **Load Extension in Chrome:**
     *   Open Google Chrome.
     *   Navigate to `chrome://extensions/`.
     *   Ensure **Developer mode** (top-right toggle) is **enabled**.
     *   Click **"Load unpacked"**.
     *   Select the `extension` directory within your local repository clone.
     *   The BrevityCloud AI Assistant should appear. Pin it to your toolbar for easy access.
+2.  **Run Deployment Script:**
+    *   **Windows:** Open PowerShell in the repository root and run: `.\deployment.ps1`
+    *   **macOS/Linux:** Open Terminal in the repository root and run: `bash deploy.sh`
+    *   This script reads the `.txt` files and injects the values into `extension/sidepanel.js`.
+
+Extras:
+1.  **Download Artifact:** Once the "Terraform Apply & Deploy Services" workflow completes successfully, navigate to the workflow run summary page.
+2.  Scroll down to **Artifacts** and download the `extension-config` artifact (it will be a zip file).
+3.  **Extract Files:** Extract the contents (`api_endpoint.txt`, `cognito_client_id.txt`) into the root directory of your locally cloned repository, overwriting if they exist.
 
 ## 5. Using the Application
 
