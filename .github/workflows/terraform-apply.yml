@@ -15,40 +15,106 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      USER_INPUT: ${{ github.event.inputs.user }}
-      # USER_UPPER removed, will use SECRET_SUFFIX instead
       USER: ${{ github.event.inputs.user }}
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }} # Need account ID for ECR URI
-      AWS_REGION: us-east-1 # Define region consistently
-      ECR_REPO_REKOGNITION: brevity-cloud-rekognition-service # Matches repo name in main.tf 
-      ECR_REPO_TRANSCRIBE: brevity-cloud-transcribe-service # Matches repo name in main.tf 
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: us-east-1
+      ECR_REPO_REKOGNITION: brevity-cloud-rekognition-service
+      ECR_REPO_TRANSCRIBE: brevity-cloud-transcribe-service
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4 # Use v4
+      uses: actions/checkout@v4
 
-    - name: Determine Secret Suffix
-      id: suffix
-      run: |
-        # Convert user input to uppercase for secret lookup
-        SUFFIX=$(echo "$USER_INPUT" | tr 'a-z' 'A-Z')
-        echo "Determined SECRET_SUFFIX=$SUFFIX"
-        # Set environment variable for subsequent steps
-        echo "SECRET_SUFFIX=$SUFFIX" >> $GITHUB_ENV
-      env:
-        USER_INPUT: ${{ github.event.inputs.user }}
-
-    # User-specific credential steps modified to use SECRET_SUFFIX
-    - name: Configure AWS credentials
+    # --- Reverted to User-Specific Credential Configuration --- 
+    - name: Configure AWS credentials (hemanth)
+      if: github.event.inputs.user == 'hemanth'
       uses: aws-actions/configure-aws-credentials@v2
       with:
-        aws-access-key-id: ${{ secrets[format('AWS_ACCESS_KEY_ID_{0}', env.SECRET_SUFFIX)] }}
-        aws-secret-access-key: ${{ secrets[format('AWS_SECRET_ACCESS_KEY_{0}', env.SECRET_SUFFIX)] }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_HEMANTH }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_HEMANTH }}
         aws-region: ${{ env.AWS_REGION }}
-        
-    - name: Verify AWS Credentials
+    - name: Verify AWS Credentials (hemanth)
+      if: github.event.inputs.user == 'hemanth'
       run: aws sts get-caller-identity
 
+    - name: Configure AWS credentials (swetha)
+      if: github.event.inputs.user == 'swetha'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SWETHA }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SWETHA }}
+        aws-region: ${{ env.AWS_REGION }}
+    - name: Verify AWS Credentials (swetha)
+      if: github.event.inputs.user == 'swetha'
+      run: aws sts get-caller-identity
+
+    - name: Configure AWS credentials (sanjeev)
+      if: github.event.inputs.user == 'sanjeev'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANJEEV }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANJEEV }}
+        aws-region: ${{ env.AWS_REGION }}
+    - name: Verify AWS Credentials (sanjeev)
+      if: github.event.inputs.user == 'sanjeev'
+      run: aws sts get-caller-identity
+
+    - name: Configure AWS credentials (sandeep)
+      if: github.event.inputs.user == 'sandeep'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SANDEEP }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SANDEEP }}
+        aws-region: ${{ env.AWS_REGION }}
+    - name: Verify AWS Credentials (sandeep)
+      if: github.event.inputs.user == 'sandeep'
+      run: aws sts get-caller-identity
+
+    - name: Configure AWS credentials (nithikesh)
+      if: github.event.inputs.user == 'nithikesh'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_NITHIKESH }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_NITHIKESH }}
+        aws-region: ${{ env.AWS_REGION }}
+    - name: Verify AWS Credentials (nithikesh)
+      if: github.event.inputs.user == 'nithikesh'
+      run: aws sts get-caller-identity
+      
+    # --- Grader Credential Steps ---
+    - name: Configure AWS credentials (michael)
+      if: github.event.inputs.user == 'michael'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_MICHAEL }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_MICHAEL }}
+        aws-region: ${{ env.AWS_REGION }}
+    - name: Verify AWS Credentials (michael)
+      if: github.event.inputs.user == 'michael'
+      run: aws sts get-caller-identity
+
+    - name: Configure AWS credentials (shireen)
+      if: github.event.inputs.user == 'shireen'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SHIREEN }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SHIREEN }}
+        aws-region: ${{ env.AWS_REGION }}
+    - name: Verify AWS Credentials (shireen)
+      if: github.event.inputs.user == 'shireen'
+      run: aws sts get-caller-identity
+      
+    - name: Configure AWS credentials (peyton)
+      if: github.event.inputs.user == 'peyton'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_PEYTON }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_PEYTON }}
+        aws-region: ${{ env.AWS_REGION }}
+    - name: Verify AWS Credentials (peyton)
+      if: github.event.inputs.user == 'peyton'
+      run: aws sts get-caller-identity
+      
     # --- Create S3 Backend Bucket if it doesn't exist --- 
     - name: Create S3 Backend Bucket
       run: |
@@ -66,42 +132,6 @@ jobs:
         fi
       env:
          AWS_REGION: ${{ env.AWS_REGION }}
-
-    # --- ADD Grader Credential Steps ---
-    - name: Configure AWS credentials (michael)
-      if: env.USER_INPUT == 'michael'
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_MICHAEL }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_MICHAEL }}
-        aws-region: ${{ env.AWS_REGION }}
-    - name: Verify AWS Credentials (michael)
-      if: env.USER_INPUT == 'michael'
-      run: aws sts get-caller-identity
-
-    - name: Configure AWS credentials (shireen)
-      if: env.USER_INPUT == 'shireen'
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_SHIREEN }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_SHIREEN }}
-        aws-region: ${{ env.AWS_REGION }}
-    - name: Verify AWS Credentials (shireen)
-      if: env.USER_INPUT == 'shireen'
-      run: aws sts get-caller-identity
-      
-    - name: Configure AWS credentials (peyton)
-      if: env.USER_INPUT == 'peyton'
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_PEYTON }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY_PEYTON }}
-        aws-region: ${{ env.AWS_REGION }}
-    - name: Verify AWS Credentials (peyton)
-      if: env.USER_INPUT == 'peyton'
-      run: aws sts get-caller-identity
-      
-    # --- End of User-Specific Credential Configuration --- 
 
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v3

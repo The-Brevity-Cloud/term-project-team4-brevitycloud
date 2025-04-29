@@ -1,16 +1,13 @@
-# BrevityCloud AI Assistant - User Manual (v2 - ECS Architecture)
+# BrevityCloud AI Assistant - User Manual (v3 - ECS Architecture, Automated Buckets)
 
 This document provides detailed instructions on how to set up, configure, deploy, and use the BrevityCloud AI Assistant Chrome Extension with its ECS-based backend components.
 
 ## Table of Contents
 
-1.  [Prerequisites](#1-prerequisites)
-2.  [AWS Setup](#2-aws-setup)
-3.  [Backend Deployment (Terraform & GitHub Actions)](#3-backend-deployment-terraform--github-actions)
-    *   [GitHub Actions Workflow Overview](#github-actions-workflow-overview)
-    *   [Secrets Configuration](#secrets-configuration)
-    *   [Running the Deployment Workflow](#running-the-deployment-workflow)
-4.  [Frontend Setup (Extension Loading)](#4-frontend-setup-extension-loading)
+1.  [Prerequisites (AWS Account & IAM User Setup)](#1-prerequisites-aws-account--iam-user-setup)
+2.  [Prerequisites (GitHub Setup)](#2-prerequisites-github-setup)
+3.  [Deployment (GitHub Actions Workflow)](#3-deployment-github-actions-workflow)
+4.  [Frontend Setup (Local Extension Configuration)](#4-frontend-setup-local-extension-configuration)
 5.  [Using the Application](#5-using-the-application)
     *   [Registration & Login](#registration--login)
     *   [Summarizing a Webpage](#summarizing-a-webpage)
@@ -18,215 +15,246 @@ This document provides detailed instructions on how to set up, configure, deploy
     *   [Detecting Text in Images (Async)](#detecting-text-in-images-async)
     *   [Using Voice Input (Async)](#using-voice-input-async)
     *   [Viewing History](#viewing-history)
+    *   [Viewing Landing Page](#viewing-landing-page)
     *   [Logging Out](#logging-out)
 6.  [Testing Auto-Scaling](#6-testing-auto-scaling)
 7.  [Troubleshooting](#7-troubleshooting)
-8.  [Development Notes](#8-development-notes)
-9.  [Teardown (Terraform Destroy)](#9-teardown-terraform-destroy)
+8.  [Teardown (Destroy Workflow & Manual Cleanup)](#8-teardown-destroy-workflow--manual-cleanup)
+9.  [Development Notes](#9-development-notes)
 
 ---
 
-## 1. Prerequisites
+## 1. Prerequisites (AWS Account & IAM User Setup)
 
-*   **Git:** To clone the repository.
-*   **GitHub Account:** With access to the project repository and permissions to run Actions.
-*   **AWS Account:** With permissions to create the necessary resources (IAM User, Lambda, API Gateway, Cognito, DynamoDB, S3, Kendra, Bedrock, Rekognition, Transcribe, ECR, ECS, VPC, CloudWatch, etc.).
-*   **AWS CLI:** Installed locally (optional, for manual checks or creating initial IAM users).
-*   **Web Browser:** Google Chrome or a Chromium-based browser.
-*   **(Optional) Shell Environment:** Bash (Linux/macOS/WSL) or PowerShell (Windows) for running local scripts (like the extension deployment script or auto-scaling test).
-*   **(Optional) Docker:** Installed locally if you want to build/test container images outside of GitHub Actions.
+These steps need to be performed **once per AWS account** that will be used for deployment (e.g., each grader needs to do this in their own account).
 
-## 2. AWS Setup
+1.  **AWS Account:** Ensure you have access to an AWS account.
+2.  **IAM User Creation:**
+    *   Log in to the AWS Management Console and navigate to the **IAM** service.
+    *   Go to **Users** and click **Create user**.
+    *   Enter a username (e.g., `michael-deployer`, `shireen-deployer`).
+    *   Click **Next**.
+    *   Choose **Attach policies directly**.
+    *   Search for and attach policies that grant the necessary permissions. A combination like the following is recommended, but review your organization's policies:
+        *   `IAMFullAccess` (Or more scoped IAM permissions if preferred, needs ability to create roles/policies for services)
+        *   `AmazonS3FullAccess` (Needed for state bucket creation and interaction)
+        *   `AmazonEC2ContainerRegistryFullAccess` (For ECR push/pull)
+        *   `AmazonECS_FullAccess` (For ECS cluster/service/task management)
+        *   `AWSLambda_FullAccess` (For Lambda creation/management)
+        *   `AmazonAPIGatewayAdministrator` (For API Gateway setup)
+        *   `AmazonDynamoDBFullAccess` (For DynamoDB table)
+        *   `AmazonCognitoPowerUser` (For Cognito User Pool)
+        *   `AmazonKendraFullAccess` (For Kendra Index)
+        *   `AmazonBedrockFullAccess` (Or specifically allow `bedrock:InvokeModel` on the required models)
+        *   `AmazonRekognitionFullAccess`
+        *   `AmazonTranscribeFullAccess`
+        *   `AmazonAmplifyAdministrator` (For Amplify deployment)
+        *   `SecretsManagerReadWrite` (To read the GitHub PAT secret)
+        *   `CloudWatchLogsFullAccess` (For log access)
+        *   *(Note: Using `AdministratorAccess` grants all necessary permissions but is less secure. Use more granular policies if possible.)*
+    *   Click **Next**, review, and click **Create user**.
+3.  **Generate Access Keys:**
+    *   Click on the newly created username in the IAM Users list.
+    *   Go to the **Security credentials** tab.
+    *   Scroll down to **Access keys** and click **Create access key**.
+    *   Select **Command Line Interface (CLI)** as the use case.
+    *   Acknowledge the recommendation and click **Next**.
+    *   (Optional) Set a description tag.
+    *   Click **Create access key**.
+    *   **CRITICAL:** Immediately copy both the **Access key ID** and the **Secret access key**. Store them securely. The Secret access key will *not* be shown again.
+4.  **Enable Bedrock Model Access:**
+    *   Navigate to the **Amazon Bedrock** service console in the **us-east-1** region.
+    *   In the bottom-left menu, click **Model access**.
+    *   Click **Manage model access** (top-right).
+    *   Find **Anthropic** -> **Claude 3 Sonnet** and check the box.
+    *   Click **Save changes**.
+5.  **Create GitHub PAT Secret in Secrets Manager:**
+    *   Navigate to the **AWS Secrets Manager** service console in the **us-east-1** region.
+    *   Click **Store a new secret**.
+    *   Select **Other type of secret**.
+    *   Under **Secret key/value**, click **Plaintext**.
+    *   Paste your GitHub Personal Access Token (PAT) into the plaintext field. The PAT needs the `repo` scope to allow Amplify to access your repository.
+    *   Click **Next**.
+    *   Enter the **Secret name** exactly as `Github-PAT`.
+    *   Click **Next** through the rotation settings (can leave as default).
+    *   Review and click **Store**.
 
-1.  **IAM User:** Create an IAM User for each team member who will run the deployment workflow (e.g., `hemanth-github-deployer`).
-    *   Navigate to the IAM service in the AWS Console.
-    *   Create a new user.
-    *   Attach necessary permissions to this user: Permissions to create/manage all resources defined in Terraform (VPC, ECR, ECS, Lambda, API GW, S3, DynamoDB, Cognito, Kendra, Rekognition, Transcribe, Bedrock, CloudWatch, Amplify, Secrets Manager read, IAM roles/policies for services, etc.), plus `ecr:GetAuthorizationToken`, `ecr:BatchCheckLayerAvailability`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, `ecr:PutImage`, `ecs:RunTask`, `iam:PassRole` (for ECS Task roles), `amplify:StartJob`.
-    *   **Generate Access Keys:** On the user's security credentials tab, create an Access Key ID and Secret Access Key. **Securely store these keys immediately**, as the secret key is only shown once.
-2.  **Enable AWS Bedrock Model Access:**
-    *   Navigate to the AWS Bedrock console in your chosen region (`us-east-1`).
-    *   Go to "Model access".
-    *   Request access and ensure access is granted for `anthropic.claude-3-sonnet-20240229-v1:0` (or the model used in `backend/summarize.py`).
-3.  **Secrets Manager:** Create a secret in AWS Secrets Manager (e.g., named `Github-PAT`) containing a GitHub Personal Access Token with `repo` scope. This is used by Terraform to allow Amplify to connect to your repository.
+## 2. Prerequisites (GitHub Setup)
 
-## 3. Backend Deployment (Terraform & GitHub Actions)
+1.  **GitHub Account:** Ensure you have a GitHub account.
+2.  **Repository Access:** Be added as a collaborator to the `The-Brevity-Cloud/term-project-team4-brevitycloud` repository.
+3.  **Configure GitHub Secrets:**
+    *   Navigate to the repository on GitHub.
+    *   Go to `Settings` > `Secrets and variables` > `Actions`.
+    *   Click **New repository secret** for each of the following:
+        *   `AWS_ACCOUNT_ID`: Enter your 12-digit AWS Account ID.
+        *   `AWS_ACCESS_KEY_<YOUR_NAME_UPPERCASE>`: Enter the Access Key ID generated for your IAM User (e.g., for user `michael`, the secret name is `AWS_ACCESS_KEY_MICHAEL`).
+        *   `AWS_SECRET_KEY_<YOUR_NAME_UPPERCASE>`: Enter the Secret Access Key generated for your IAM User (e.g., for user `michael`, the secret name is `AWS_SECRET_KEY_MICHAEL`).
 
-The entire backend infrastructure and service deployment is managed by Terraform, executed via a GitHub Actions workflow.
+## 3. Deployment (GitHub Actions Workflow)
 
-### GitHub Actions Workflow Overview
+This workflow deploys the entire backend infrastructure, Docker services, and the landing page.
 
-The primary workflow is defined in `.github/workflows/terraform-apply.yml`. When triggered manually, it performs the following steps:
+1.  **Navigate to Actions:** Go to the **Actions** tab in the GitHub repository.
+2.  **Select Workflow:** Find the **\"Terraform Apply & Deploy Services\"** workflow in the list.
+3.  **Run Workflow:**
+    *   Click the **\"Run workflow\"** dropdown button.
+    *   Ensure the correct branch is selected (usually `main` for final deployment/grading, or `hemanth` for development).
+    *   In the **\"Team member identifier\"** input box, enter your **lowercase** first name (e.g., `michael`, `shireen`, `peyton`, `hemanth`). This **must** match the suffix used in your GitHub secret names (but in lowercase).
+    *   Click the green **\"Run workflow\"** button.
+4.  **Monitor:** Observe the workflow progress in the Actions tab. It performs the following key steps:
+    *   Checks out code from the selected branch.
+    *   Configures AWS credentials using the secrets matching your input name.
+    *   Creates an S3 bucket (`tf-state-<your_name>-brevity`) for Terraform state if it doesn't exist.
+    *   Creates `terraform.tfvars` with your username and the current branch name.
+    *   Packages Lambda functions.
+    *   Initializes Terraform using your user-specific S3 state bucket/key.
+    *   Applies Terraform to create ECR repositories.
+    *   Builds and pushes Rekognition/Transcribe Docker images (from the current branch code) to ECR.
+    *   Applies the full Terraform configuration (VPC, ECS, Lambdas, API Gateway, etc.).
+    *   Exports API endpoint and Cognito Client ID.
+    *   Uploads configuration as an artifact.
+    *   Triggers an Amplify deployment using the code from the current branch.
 
-1.  **Checkout:** Checks out the repository code.
-2.  **Configure AWS Credentials:** Assumes the pre-configured IAM Role using OIDC based on the `user` input.
-3.  **Login to ECR:** Authenticates Docker with your AWS Elastic Container Registry.
-4.  **Build & Push Images:** Builds Docker images for the Rekognition and Transcribe services (`backend/Dockerfile.*`) and pushes them to their respective ECR repositories, tagged with the Git commit SHA.
-5.  **Setup Terraform:** Initializes the Terraform CLI.
-6.  **Package Lambdas:** Creates deployment packages (.zip files) for the `summarize`, `auth`, `invoke_rekognition`, `invoke_transcribe`, and `get_result` Lambda functions using the `backend/package_*.sh` scripts.
-7.  **Terraform Init:** Initializes Terraform using the S3 backend configured for the specified user (e.g., `s3://tf-state-<user>-brevity/...`).
-8.  **Terraform Validate:** Checks the Terraform code for syntax errors.
-9.  **Terraform Plan:** (Optional but implicitly run) Calculates the changes needed.
-10. **Terraform Apply:** Applies the Terraform configuration, creating/updating all AWS resources (VPC, ECR, ECS Cluster/Tasks/Service, Lambdas, API Gateway, S3, DynamoDB, Cognito, Kendra, Amplify, IAM Roles, etc.). The URIs of the newly pushed Docker images are passed as variables to this step.
-11. **Export Outputs:** Extracts the API Gateway endpoint and Cognito Client ID into text files (`api_endpoint.txt`, `cognito_client_id.txt`).
-12. **Upload Artifact:** Uploads the output text files as a workflow artifact named `extension-config` for use by the local frontend setup script.
-13. **Trigger Amplify Deployment:** Starts a build and deployment job in AWS Amplify for the `hemanth` branch to update the landing page.
+## 4. Frontend Setup (Local Extension Configuration)
 
-### Secrets Configuration
+These steps configure the locally cloned Chrome extension to communicate with the deployed backend.
 
-Before running the workflow, ensure the following secrets are configured in your GitHub repository settings (`Settings` > `Secrets and variables` > `Actions`):
-
-*   `AWS_ACCOUNT_ID`: Your 12-digit AWS Account ID.
-*   `AWS_ACCESS_KEY_ID_<USER>`: The AWS Access Key ID for the IAM user corresponding to the `user` input (e.g., `AWS_ACCESS_KEY_ID_hemanth`).
-*   `AWS_SECRET_ACCESS_KEY_<USER>`: The AWS Secret Access Key for the IAM user corresponding to the `user` input (e.g., `AWS_SECRET_ACCESS_KEY_hemanth`).
-
-Replace `<USER>` with the actual team member identifier (`hemanth`, `swetha`, etc.). You need to create separate secrets for each user who will run the workflow.
-
-### Running the Deployment Workflow
-
-1.  Navigate to the "Actions" tab in your GitHub repository.
-2.  Select the "Terraform Apply & Deploy Services" workflow.
-3.  Click the "Run workflow" dropdown.
-4.  Enter your team member identifier (e.g., `hemanth`) in the `user` input field.
-5.  Click "Run workflow".
-6.  Monitor the workflow progress in the Actions tab.
-
-## 4. Frontend Setup (Extension Loading)
-
-After the GitHub Actions workflow completes successfully, you need to configure and load the Chrome extension locally.
-
-1.  **Download Artifacts:**
-    *   Go to the completed workflow run page on GitHub Actions.
-    *   Download the `extension-config` artifact. It will be a zip file containing `api_endpoint.txt` and `cognito_client_id.txt`.
-    *   Extract these files into the root directory of your local repository clone.
-2.  **Run Local Deployment Script:** This script injects the downloaded configuration into the extension code.
-    *   **Windows:** Open PowerShell, navigate to the repository root, and run: `.\deployment.ps1`
-    *   **macOS/Linux:** Open Terminal, navigate to the repository root, and run: `bash deploy.sh`
-    *   *(Note: These scripts previously downloaded artifacts using `gh cli`, you might need to adjust them or manually copy the file contents if `gh run download` doesn't work as expected)*
-    *   Alternatively, **Manually Update Configuration:** Open `extension/sidepanel.js`. Find `API_ENDPOINT` and `COGNITO_CLIENT_ID` constants and replace their placeholder values with the content from the downloaded `.txt` files.
-3.  **Load the Extension in Chrome:**
-    *   Open Chrome and navigate to `chrome://extensions/`.
-    *   Enable **Developer mode**.
-    *   Click **"Load unpacked"**.
-    *   Select the `extension` directory within your repository.
-    *   The BrevityCloud AI Assistant should appear. Pin it for easy access.
+1.  **Download Artifact:** Once the \"Terraform Apply & Deploy Services\" workflow completes successfully, navigate to the workflow run summary page.
+2.  Scroll down to **Artifacts** and download the `extension-config` artifact (it will be a zip file).
+3.  **Extract Files:** Extract the contents (`api_endpoint.txt`, `cognito_client_id.txt`) into the root directory of your locally cloned repository, overwriting if they exist.
+4.  **Run Deployment Script:**
+    *   **Windows:** Open PowerShell in the repository root and run: `.\\deployment.ps1`
+    *   **macOS/Linux:** Open Terminal in the repository root and run: `bash deploy.sh`
+    *   This script reads the `.txt` files and injects the values into `extension/sidepanel.js`.
+5.  **Load Extension in Chrome:**
+    *   Open Google Chrome.
+    *   Navigate to `chrome://extensions/`.
+    *   Ensure **Developer mode** (top-right toggle) is **enabled**.
+    *   Click **\"Load unpacked\"**.
+    *   Select the `extension` directory within your local repository clone.
+    *   The BrevityCloud AI Assistant should appear. Pin it to your toolbar for easy access.
 
 ## 5. Using the Application
 
+Open the BrevityCloud side panel by clicking its icon in the Chrome toolbar.
+
 ### Registration & Login
 
-1.  Click the BrevityCloud extension icon to open the side panel.
-2.  If you are a new user, click the "Register" link.
-3.  Enter your email address and a desired password. Click "Register".
-4.  Check your email for a verification code from AWS Cognito.
-5.  Enter the verification code in the side panel and click "Verify".
-6.  You will be taken to the login screen. Enter your registered email and password, then click "Login".
+*   Click the BrevityCloud extension icon.
+*   If new, click "Register", enter email/password, click "Register".
+*   Check email for verification code, enter it in the side panel, click "Verify".
+*   Enter registered email/password, click "Login".
 
 ### Summarizing a Webpage
 
-1.  Navigate to a webpage you want to summarize.
-2.  Ensure you are logged into the extension.
-3.  Click the BrevityCloud extension icon.
-4.  Select the desired processing model (Kendra or Bedrock) using the toggle buttons.
-5.  Click the "Summarize this page" button.
-6.  Wait for the loading indicator to finish. The summary will appear in the panel.
+*   Navigate to a webpage.
+*   Ensure logged in.
+*   Click the extension icon.
+*   Select model (Kendra/Bedrock).
+*   Click "Summarize this page".
+*   Wait for the summary to appear.
 
 ### Chatting with Page Context
 
-1.  Summarize a page first (as above) to load its context.
-2.  Type a question related to the page content in the input box at the bottom of the panel.
-3.  Click "Send".
-4.  The AI will answer your question based on the page's content. The response will appear below the summary.
+*   Summarize a page first.
+*   Type question in the input box at the bottom.
+*   Click "Send".
+*   The response appears below the summary.
 
 ### Detecting Text in Images (Async)
 
-1.  Navigate to a webpage with images.
-2.  Ensure you are logged in.
-3.  Right-click an image.
-4.  Select "Detect Text Using Amazon Rekognition".
-5.  The side panel will open, display the image, and show a "Processing..." message in the text area.
-6.  The extension will poll for the result in the background.
-7.  Once processing is complete (usually within seconds), the detected text will appear in the text area.
-8.  If an error occurs, an error message will be shown.
+*   Navigate to a webpage with images.
+*   Ensure logged in.
+*   Right-click an image.
+*   Select "Detect Text Using Amazon Rekognition".
+*   Side panel opens/updates, shows the image, and displays "Processing...".
+*   Detected text appears in the text area after polling completes (seconds). Errors are shown if failed.
+    *   *(Screenshot Idea: Show side panel with image displayed and "Processing..." text, then another with detected text)*
 
 ### Using Voice Input (Async)
 
-1.  Ensure you are logged in.
-2.  Click the microphone icon.
-3.  Grant microphone permission if prompted.
-4.  Speak your query.
-5.  Click the icon again to stop recording.
-6.  A message like "Audio submitted. Processing transcript..." will appear in the chat.
-7.  The extension will poll for the result.
-8.  Once complete (can take seconds to a minute depending on length), the final transcript will appear as a new message in the chat.
-9.  If transcription fails or times out, an error message will appear in the chat.
-10. *(Limitation: The transcript appears as a new message, it does not automatically populate the input box for sending as a chat query)*
+*   Ensure logged in.
+*   Click the microphone icon.
+*   Grant permission if prompted.
+*   Speak query.
+*   Click mic icon again to stop.
+*   "Audio submitted..." message appears in chat.
+*   Final transcript appears as a new chat message after polling (seconds-minutes). Errors are shown if failed.
+    *   *(Screenshot Idea: Show chat area with "Audio submitted..." message, then another with the transcribed text message)*
 
 ### Viewing History
 
-1.  Ensure you are logged into the extension.
-2.  Click the "View History" button (below the Logout button).
-3.  The panel will display your last 5 summaries and chat interactions, sorted by most recent.
-4.  Click the "Back" button to return to the main summarization/chat view.
+*   Ensure logged in.
+*   Click "View History" button.
+*   Panel displays recent summaries and chats.
+*   Click "Back" to return.
+
+### Viewing Landing Page
+
+*   Go to the completed \"Terraform Apply & Deploy Services\" workflow run on GitHub Actions.
+*   Expand the logs for the \"Export Terraform outputs\" step.
+*   Find the URL labeled \"Amplify Landing Page URL:\".
+*   Copy and paste this URL into your browser.
 
 ### Logging Out
 
-1.  Click the "Logout" button at the bottom of the main panel.
-2.  You will be returned to the login screen.
+*   Click "Logout" button.
+*   Returns to login screen.
 
 ## 6. Testing Auto-Scaling
 
-The Transcribe backend is deployed as an ECS Service configured for auto-scaling based on CPU utilization.
+This tests the Transcribe ECS service's ability to scale under load.
 
-1.  **Get JWT Token:** Log in to the extension successfully. Open the browser's developer console (F12), go to the "Application" (or "Storage") tab, find "Session Storage", select the extension's origin, and copy the value associated with the `id_token` key.
+1.  **Get JWT Token:** Log in to the extension. Open browser Dev Tools (F12) -> Application/Storage -> Session Storage -> Find extension origin -> Copy `id_token` value.
 2.  **Run Test Script:**
-    *   Open a Bash terminal (Linux/macOS/WSL).
-    *   Make the script executable: `chmod +x test_autoscaling.sh`
-    *   Run the script, passing the API endpoint (from `api_endpoint.txt`) and your JWT token:
-        ```bash
-        ./test_autoscaling.sh <your_api_endpoint_url> <your_jwt_token>
-        ```
-    *   The script will send multiple concurrent requests to the `/transcribe` endpoint.
-3.  **Observe Scaling:**
-    *   Go to the AWS Console -> ECS -> Clusters -> Select your cluster (e.g., `brevity-cloud-<user>-cluster`).
-    *   Navigate to the `brevity-cloud-<user>-transcribe-service`.
-    *   Monitor the "Tasks" tab. You should see the "Running tasks count" increase from the desired count (usually 1) towards the maximum (default 3) as the load increases.
-    *   Check the "Events" tab to see messages related to Application Auto Scaling triggering scaling actions.
-    *   Check CloudWatch Metrics for the service's `CPUUtilization`. It should spike during the test.
-    *   *(Note: Scaling actions take a few minutes to occur after thresholds are met.)*
-    *   After the script finishes, the load will decrease, and eventually, the service should scale back down to the minimum task count.
+    *   Open Bash terminal (Linux/macOS/WSL) in the repository root.
+    *   Get API endpoint from `api_endpoint.txt` (created by `deployment.ps1`/`deploy.sh`).
+    *   Run: `bash test_autoscaling.sh <API_ENDPOINT> <JWT_TOKEN>`
+3.  **Observe Scaling (AWS Console):**
+    *   Go to **ECS** -> Clusters -> Select your cluster (`brevity-cloud-<user>-cluster`).
+    *   Navigate to the **Services** tab -> click `brevity-cloud-<user>-transcribe-service`.
+    *   **Tasks Tab:** Watch "Running tasks count" increase (e.g., 1 -> 3). *(Screenshot: Show task count increasing)*
+    *   **Events Tab:** Look for "service ... reached steady state" and "service ... registered X targets ..." events indicating scaling actions. *(Screenshot: Show scaling events)*
+    *   **CloudWatch Metrics:** Go to CloudWatch -> Metrics -> ECS -> Cluster Name, Service Name. Graph `CPUUtilization`. Watch it spike during the test and drop afterward. *(Screenshot: Show CPU graph spiking)*
+4.  **Verify Scale-In:** After the script finishes, observe the task count eventually return to the minimum (usually 1) as CPU usage drops.
 
 ## 7. Troubleshooting
 
-*   **Workflow Failures:** Check the specific step logs in GitHub Actions for errors.
-    *   `Configure AWS Credentials` step: Ensure the correct secrets (`AWS_ACCESS_KEY_ID_<USER>`, `AWS_SECRET_ACCESS_KEY_<USER>`) exist in GitHub secrets and match the `user` input provided to the workflow. Verify the IAM user has the necessary permissions listed in the AWS Setup section.
-    *   Docker push errors, Terraform errors, AWS CLI errors.
-*   **Login/API Errors:** Check API Gateway CloudWatch Logs (`/aws/apigateway/...`) and relevant Lambda logs (`/aws/lambda/...-summarize`, `...-auth`, `...-invoke-rekognition`, `...-invoke-transcribe`, `...-get-result`) for errors.
-*   **Rekognition/Transcribe Failures (No Result):**
-    *   Check the corresponding *invoker* Lambda logs first (`...-invoke-rekognition`, `...-invoke-transcribe`) to see if `ecs:RunTask` was called successfully.
-    *   Check the ECS Task logs in CloudWatch (log groups `/ecs/brevity-cloud-<user>-rekognition` or `/ecs/brevity-cloud-<user>-transcribe`). Look for Python errors or permission issues within the container.
-    *   Check the `get_result` Lambda logs if polling seems stuck.
-    *   Check the S3 bucket for result files (`rekognition-results/`, `transcribe-results/`) or failure files (`transcribe-results/....FAILED.txt`).
-*   **Extension UI Issues:** Use the browser's developer console (F12) for the side panel to check for JavaScript errors related to polling or displaying results.
-*   **Terraform State Lock:** If a workflow fails mid-apply, the Terraform state might be locked. You may need to manually unlock it via the AWS CLI (`terraform force-unlock`) after verifying no other process is running.
+*   **Workflow Failures:**
+    *   `Configure AWS Credentials` step: Check GitHub Actions secret names match `AWS_ACCESS_KEY_<YOUR_NAME_UPPERCASE>` / `AWS_SECRET_KEY_<YOUR_NAME_UPPERCASE>`. Verify the corresponding IAM user has required permissions (Section 1).
+    *   `Create S3 Backend Bucket` step: Verify IAM user has `s3:CreateBucket` and related S3 permissions.
+    *   `Terraform Init/Plan/Apply`: Check detailed Terraform error message printed in the logs. Common issues: missing permissions for creating specific resources, invalid configuration, state lock errors.
+    *   `Docker Push`: Verify ECR repository exists and IAM user has ECR push permissions.
+    *   `Trigger Amplify Deployment`: Ensure the target branch exists in GitHub and the IAM user has `amplify:StartJob` permission.
+*   **Login/API Errors (Extension UI):** Check browser developer console (F12) for network errors (4xx/5xx). Check API Gateway CloudWatch Logs (`/aws/apigateway/...`) and relevant Lambda logs (`/aws/lambda/...-summarize`, etc.).
+*   **Rekognition/Transcribe Failures (UI Error / No Result):**
+    *   Check **Invoker Lambda Logs First:** `/aws/lambda/brevity-cloud-<user>-invoke-rekognition` and `/aws/lambda/brevity-cloud-<user>-invoke-transcribe`. Look for errors invoking `ecs:RunTask` or `iam:PassRole`.
+    *   Check **ECS Task Logs:** `/ecs/brevity-cloud-<user>-rekognition` and `/ecs/brevity-cloud-<user>-transcribe`. Look for Python errors (`rekognition.py`, `transcribe.py`), permission errors calling AWS services (Rekognition, Transcribe, S3), or missing environment variables.
+    *   Check **Get Result Lambda Logs:** `/aws/lambda/brevity-cloud-<user>-get-result` if polling seems stuck or returns errors.
+    *   Check **S3 Bucket:** Look in the results bucket (`<project>-results-<user>`) for output files (`rekognition-results/*.txt`, `transcribe-results/*.txt`) or failure markers (`transcribe-results/*.FAILED.txt`).
+*   **Terraform State Lock:** If Terraform commands hang or explicitly mention a lock, follow manual unlock procedure (Section 8) *only if certain no other process is running*.
 
-## 8. Development Notes
+## 8. Teardown (Destroy Workflow & Manual Cleanup)
 
-*   **Architecture:** Rekognition and Transcribe logic now runs in ECS Fargate tasks, triggered by specific invoker Lambda functions. Results are saved to S3.
-*   **Asynchronous Flow:** Frontend polls a `/results/{jobId}` API endpoint to check for task completion and retrieve results.
-*   **CI/CD:** The `terraform-apply.yml` workflow handles Docker builds, ECR push, Lambda packaging, Terraform apply, and Amplify deployment.
-*   **Result Storage:** Successful results are stored as `.txt` files in `s3://<bucket>/rekognition-results/` or `s3://<bucket>/transcribe-results/`. Transcribe failures are noted in `.FAILED.txt` files.
-*   **Configuration:** API Endpoint and Cognito Client ID are passed to the local deployment scripts via the `extension-config` artifact from GitHub Actions.
-*   **Dependencies:** Backend dependencies are in `backend/requirements.txt` (used by Dockerfiles). Lambda invokers have minimal dependencies.
-*   **Costs:** Monitor AWS costs, especially for ECS Fargate, Bedrock, Kendra, Rekognition, Transcribe, and NAT Gateways.
+1.  **Run Destroy Workflow:**
+    *   Navigate to GitHub Actions -> **\"Terraform Destroy\"**.
+    *   Click **\"Run workflow\"** dropdown.
+    *   Select the branch (usually doesn't matter for destroy).
+    *   Enter your **lowercase** first name (e.g., `michael`) as the `user` input.
+    *   Click **\"Run workflow\"**.
+    *   This workflow authenticates, creates the S3 bucket if needed for init, packages Lambdas (for hash calculation), initializes Terraform using your state file, and runs `terraform destroy -auto-approve`.
+2.  **Manual S3 Bucket Cleanup (Recommended):**
+    *   The `terraform destroy` command **does not** delete the S3 state bucket (`tf-state-<user>-brevity`) as it's required for Terraform to operate.
+    *   To fully clean up, navigate to the S3 service in the AWS Console and manually delete the `tf-state-<user>-brevity` bucket **after** the destroy workflow completes successfully. Ensure the bucket is empty first (Terraform state file and lock files should be gone).
+3.  **Manual ECR Image Cleanup (Optional):**
+    *   Terraform is configured with `force_delete=true` for the ECR repositories, which *should* delete the repositories even if they contain images.
+    *   If for some reason images remain, you may need to manually delete them from the ECR console before deleting the repositories (if the destroy failed to remove the repo).
 
-## 9. Teardown (Terraform Destroy)
+## 9. Development Notes
 
-A separate GitHub Actions workflow (`.github/workflows/terraform-destroy.yml`) handles infrastructure teardown.
-
-1.  Navigate to the "Actions" tab in your GitHub repository.
-2.  Select the "Terraform Destroy" workflow.
-3.  Click "Run workflow".
-4.  Enter the `user` identifier whose infrastructure you want to destroy.
-5.  Click "Run workflow".
-6.  This workflow runs `terraform destroy -auto-approve` using the S3 backend state for the specified user, removing the AWS resources managed by Terraform.
-    *   **Caution:** This permanently deletes infrastructure. Ensure S3 buckets used for state or results are handled appropriately (e.g., backup results, configure bucket lifecycle/deletion policies). 
+*   **Architecture:** Rekognition/Transcribe run in ECS Fargate tasks triggered by invoker Lambdas. Results stored in S3, status polled via API Gateway/Lambda.
+*   **State:** Each user has a separate Terraform state file in a dedicated S3 bucket (`tf-state-<user>-brevity/user/terraform.tfstate`). Bucket created automatically by workflow.
+*   **CI/CD:** `terraform-apply.yml` handles bucket creation, packaging, Terraform apply, Docker build/push, Amplify deploy. `terraform-destroy.yml` handles packaging and Terraform destroy.
+*   **Landing Page:** Deployed via Amplify, triggered by the apply workflow using code from the branch the workflow ran on.
+*   **Costs:** Monitor AWS costs, especially ECS Fargate, NAT Gateways, Bedrock, Kendra, Rekognition, Transcribe. Remember to run teardown/destroy when finished.
